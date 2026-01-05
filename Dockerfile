@@ -1,8 +1,8 @@
-# Use an official Python runtime with Debian base (easier to install TeX)
+# Use an official Python runtime
 FROM python:3.11-slim
 
 # Install system dependencies required for RenderCV (LaTeX)
-# texlive-xetex is usually sufficient for RenderCV themes, but specific fonts might be needed
+# texlive-xetex is usually sufficient for RenderCV themes
 RUN apt-get update && apt-get install -y \
     texlive-xetex \
     texlive-fonts-recommended \
@@ -13,14 +13,14 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Copy requirements first to leverage Docker cache
-COPY requirements.txt .
+# Copy requirement.txt from backend folder
+COPY backend/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application
-COPY . .
+# Copy the rest of the backend application
+COPY backend/ .
 
 # Expose port
 EXPOSE 8000
