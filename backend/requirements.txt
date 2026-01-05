@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+rendercv[full]
+google-generativeai
+python-multipart
+pyyaml
+python-dotenv
