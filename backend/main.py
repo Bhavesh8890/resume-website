@@ -36,6 +36,10 @@ class ATSAnalysis(BaseModel):
     missing_keywords: list[str]
     formatting_check: str
 
+@app.get("/")
+def health_check():
+    return {"status": "healthy", "message": "Antigravity Resume Backend is Running"}
+
 @app.post("/generate")
 async def generate_resume_and_score(request: GenerateRequest):
     jd = request.job_description
