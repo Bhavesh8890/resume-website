@@ -9,6 +9,16 @@ export default function Home() {
 
   // UI State
   const [activeTab, setActiveTab] = useState("builder"); // builder, outreach, tracker
+  const [activeResultTab, setActiveResultTab] = useState<"resume" | "cover-letter">("resume");
+
+  // Scraper State
+  const [scraperUrl, setScraperUrl] = useState("");
+  const [isScraping, setIsScraping] = useState(false);
+
+  // Email Sequencer State
+  const [emailSequence, setEmailSequence] = useState<any[]>([]);
+  const [activeEmailIndex, setActiveEmailIndex] = useState(0);
+
   const [theme, setTheme] = useState("classic");
   const [targetRegion, setTargetRegion] = useState("international");
 
@@ -37,7 +47,7 @@ export default function Home() {
 
   const [coverLetter, setCoverLetter] = useState<string>("");
   const [isGeneratingClPdf, setIsGeneratingClPdf] = useState(false);
-  const [activeResultTab, setActiveResultTab] = useState<"resume" | "cover-letter">("resume");
+
 
   const handleGenerate = async () => {
     // Reset
@@ -227,14 +237,43 @@ export default function Home() {
 
 
   // --- Outreach Handlers ---
+  // --- Scraper Handler ---
+  const handleScrapeJob = async () => {
+    if (!scraperUrl) return;
+    setIsScraping(true);
+    try {
+      // Use existing backendUrl logic if available, or fallback
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+      const res = await fetch(`${backendUrl}/scrape-job`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: scraperUrl })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setJd(data.description);
+        alert("Job Description Imported!");
+      } else {
+        throw new Error(data.detail || "Scraping failed");
+      }
+    } catch (e: any) {
+      alert("Scraping failed: " + e.message);
+    } finally {
+      setIsScraping(false);
+    }
+  };
+
+  // --- Outreach Handlers ---
   const handleGenerateOutreach = async () => {
     if (!jd || !yaml) {
       alert("Please generate a resume first (JD and Resume YAML required)");
       return;
     }
     setIsGeneratingOutreach(true);
+    setEmailSequence([]); // clear previous
     try {
-      const res = await fetch("http://localhost:8000/generate_outreach", {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+      const res = await fetch(`${backendUrl}/generate_outreach`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -245,7 +284,16 @@ export default function Home() {
         })
       });
       const data = await res.json();
-      if (res.ok) setOutreachContent(data.content);
+      if (res.ok) {
+        if (data.emails) {
+          setEmailSequence(data.emails);
+          setActiveEmailIndex(0);
+        } else if (data.content) {
+          // Fallback for old/simple response
+          setOutreachContent(data.content);
+          setEmailSequence([]);
+        }
+      }
       else throw new Error(data.detail || "Failed to generate outreach");
     } catch (e: any) {
       alert("Failed to generate outreach: " + e.message);
@@ -464,10 +512,30 @@ export default function Home() {
 
                   {/* Job Description */}
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Job Description</label>
+                    <label className="text-sm font-medium text-slate-300">Job Description</label>
+
+                    {/* Scraper Input */}
+                    <div className="flex gap-2 mb-2">
+                      <input
+                        type="text"
+                        placeholder="Paste Job Post URL (LinkedIn/Indeed)..."
+                        className="flex-1 bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-sm text-slate-200 focus:border-cyan-500/50 outline-none"
+                        value={scraperUrl}
+                        onChange={(e) => setScraperUrl(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleScrapeJob}
+                        disabled={isScraping || !scraperUrl}
+                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
+                      >
+                        {isScraping ? "Importing..." : "Import JD"}
+                      </button>
+                    </div>
+
                     <textarea
-                      className="w-full h-32 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-600 focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 outline-none resize-none transition-all custom-scrollbar hover:bg-white/10"
-                      placeholder="Paste the Job Description here..."
+                      className="w-full h-40 bg-black/40 border border-white/10 rounded-xl p-4 text-sm text-slate-300 focus:border-cyan-500/50 outline-none transition-all resize-none"
+                      placeholder="Paste the job description here or import from URL..."
                       value={jd}
                       onChange={(e) => setJd(e.target.value)}
                     />
@@ -823,7 +891,48 @@ export default function Home() {
                 {isGeneratingOutreach ? "Writing Magic..." : "Generate Message"}
               </button>
 
-              {outreachContent && (
+              {/* Output Display */}
+              {emailSequence.length > 0 ? (
+                <div className="mt-8 relative group">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 to-blue-600/20 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-1000"></div>
+                  <div className="relative bg-[#020617] rounded-xl p-6 border border-white/10">
+
+                    {/* Tabs */}
+                    <div className="flex gap-2 mb-6 border-b border-white/10 pb-2">
+                      {emailSequence.map((email, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setActiveEmailIndex(idx)}
+                          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeEmailIndex === idx
+                              ? "bg-white/10 text-cyan-400 border-b-2 border-cyan-400"
+                              : "text-slate-400 hover:text-slate-200"
+                            }`}
+                        >
+                          {email.label || `Email ${idx + 1}`}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="mb-4">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Subject</span>
+                      <div className="mt-1 text-lg font-medium text-slate-200 border-b border-white/10 pb-2">
+                        {emailSequence[activeEmailIndex].subject}
+                      </div>
+                    </div>
+
+                    <pre className="whitespace-pre-wrap font-sans text-slate-300">
+                      {emailSequence[activeEmailIndex].body}
+                    </pre>
+
+                    <button
+                      onClick={() => navigator.clipboard.writeText(emailSequence[activeEmailIndex].subject + "\n\n" + emailSequence[activeEmailIndex].body)}
+                      className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-lg text-xs text-white"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+              ) : outreachContent && (
                 <div className="mt-8 relative group">
                   <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 to-blue-600/20 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-1000"></div>
                   <div className="relative bg-[#020617] rounded-xl p-6 border border-white/10">

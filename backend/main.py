@@ -20,7 +20,10 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
 from reportlab.lib import colors
+from reportlab.lib import colors
 import gspread
+import requests
+from bs4 import BeautifulSoup
 
 load_dotenv()
 
@@ -680,31 +683,94 @@ def save_db(data):
 async def generate_outreach(request: OutreachRequest):
     model = get_gemini_model(request.api_key)
     
-    prompt_type = ""
-    if request.outreach_type == "linkedin":
-        prompt_type = "A short, professional LinkedIn connection request (max 300 characters). highlight 1 key match."
-    elif request.outreach_type == "cold_email":
-        prompt_type = "A concise, high-impact cold email to the Hiring Manager. Pitch value proposition based on the resume matches. Use a catchy subject line."
-    elif request.outreach_type == "follow_up":
-        prompt_type = "A polite but firm follow-up email sent 1 week after applying. Reiterate enthusiasm and a specific qualification."
+    # Decide Prompt and Format based on type
+    if request.outreach_type == "cold_email":
+        # 3-Step Sequence
+        prompt = f"""
+        You are an expert Career Coach and Copywriter.
+        Task: Create a 3-step Cold Email Sequence for this job application.
+        
+        JOB DESCRIPTION:
+        {request.job_description}
 
-    prompt = f"""
-    You are a Career Coach. Draft a {request.outreach_type} message.
-    {prompt_type}
+        RESUME SUMMARY:
+        {request.resume_yaml[:2000]}
 
-    JOB DESCRIPTION:
-    {request.job_description}
+        OUTPUT FORMAT:
+        Strictly return a JSON object with this structure:
+        {{
+            "emails": [
+                {{
+                    "label": "Initial Email",
+                    "subject": "Catchy Subject Line",
+                    "body": "Email body (max 200 words)..."
+                }},
+                {{
+                    "label": "Follow-up (3 Days)",
+                    "subject": "Re: [Original Subject]",
+                    "body": "Short polite nudge..."
+                }},
+                {{
+                    "label": "Final Follow-up (7 Days)",
+                    "subject": "Re: [Original Subject]",
+                    "body": "Final breakup email..."
+                }}
+            ]
+        }}
+        Do not markdown format the JSON. Just return the raw JSON string.
+        """
+    else:
+        # Single Message (LinkedIn, Follow-up, etc.)
+        # We still wrap it in the same JSON structure for frontend consistency
+        context_instruction = ""
+        if request.outreach_type == "linkedin":
+            context_instruction = "Draft a short, professional LinkedIn connection request (max 300 characters). Highlight 1 key match. No subject line needed for LinkedIn."
+        elif request.outreach_type == "follow_up":
+            context_instruction = "Draft a polite but firm follow-up email sent 1 week after applying. Reiterate enthusiasm."
 
-    MY RESUME SUMMARY:
-    {request.resume_yaml}
+        prompt = f"""
+        You are an expert Career Coach.
+        Task: {context_instruction}
+        
+        JOB DESCRIPTION:
+        {request.job_description[:1000]}
 
-    OUTPUT FORMAT:
-    Return ONLY the message text. If it's an email, include "Subject: ..." on the first line.
-    """
+        RESUME SUMMARY:
+        {request.resume_yaml[:1000]}
+
+        OUTPUT FORMAT:
+        Strictly return a JSON object with this structure:
+        {{
+            "emails": [
+                {{
+                    "label": "{request.outreach_type.capitalize()}",
+                    "subject": "Outreach",
+                    "body": "Message content here..."
+                }}
+            ]
+        }}
+        Do not markdown format the JSON. Just return the raw JSON string.
+        """
 
     try:
         response = model.generate_content(prompt)
-        return {"content": response.text.strip()}
+        text_response = response.text
+        
+        # Clean potential markdown code blocks if gemini adds them
+        clean_text = text_response.replace("```json", "").replace("```", "").strip()
+        
+        # Validate JSON
+        try:
+             json_data = json.loads(clean_text)
+             return json_data
+        except json.JSONDecodeError:
+             # Fallback if AI fails JSON
+             return {
+                 "emails": [
+                     {"label": "Generated Message", "subject": "Outreach", "body": text_response}
+                 ]
+             }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -783,6 +849,81 @@ def update_status(app_id: str, update: ApplicationUpdate):
             return entry
     raise HTTPException(status_code=404, detail="Application not found")
 
+# --- Scraper ---
+class ScrapeRequest(BaseModel):
+    url: str
+
+@app.post("/scrape-job")
+async def scrape_job(request: ScrapeRequest):
+    try:
+        url = request.url
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+
+        # --- SPECIAL HANDLING FOR LINKEDIN ---
+        # LinkedIn "collections" or "search" URLs often redirect to login. 
+        # We need to construct the public "jobs/view" URL using the Job ID.
+        if "linkedin.com" in url:
+            job_id = None
+            # Case 1: URL query param ?currentJobId=12345
+            match = re.search(r"currentJobId=(\d+)", url)
+            if match:
+                job_id = match.group(1)
+            
+            # Case 2: URL path jobs/view/12345
+            if not job_id:
+                match = re.search(r"jobs/view/(\d+)", url)
+                if match:
+                    job_id = match.group(1)
+
+            if job_id:
+                # Rewrite to the public view URL which is often scrapable without auth
+                url = f"https://www.linkedin.com/jobs/view/{job_id}"
+                print(f"Rewrote LinkedIn URL to public version: {url}")
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        # LinkedIn might return 429 or 999 for bots, handle gracefully?
+        if response.status_code != 200:
+             raise HTTPException(status_code=400, detail=f"Scraper blocked or failed (Status {response.status_code})")
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # improved scraping logic: look for main content areas
+        # LinkedIn specific: class usually contains 'description' or 'show-more-less-html'
+        content = soup.find(class_=re.compile(r"(description|show-more-less-html|job-details)", re.I))
+        
+        if not content:
+             # Fallback to general semantic tags
+             content = soup.find('main') or soup.find('article') or soup.body
+        
+        if not content:
+             raise HTTPException(status_code=400, detail="Could not extract content from page")
+
+        # extract text from common text tags
+        text_elements = content.find_all(['p', 'li', 'h1', 'h2', 'h3', 'h4', 'ul', 'div'])
+        
+        # filter out very short lines (often menu items or noise)
+        lines = [elem.get_text(strip=True) for elem in text_elements if len(elem.get_text(strip=True)) > 20]
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_lines = []
+        for line in lines:
+            if line not in seen:
+                unique_lines.append(line)
+                seen.add(line)
+
+        full_text = "\n\n".join(unique_lines[:100]) # Limit blocks
+        
+        return {"description": full_text}
+
+    except Exception as e:
+        print(f"Scraping error: {e}")
+        raise HTTPException(status_code=400, detail=f"Failed to scrape URL: {str(e)}")
+
+# --- Main ---
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -7,3 +7,5 @@ pyyaml
 python-dotenv
 reportlab
 gspread
+beautifulsoup4
+requests
