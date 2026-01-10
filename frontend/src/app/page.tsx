@@ -22,6 +22,9 @@ export default function Home() {
   const [theme, setTheme] = useState("classic");
   const [targetRegion, setTargetRegion] = useState("international");
 
+  // Constant for API URL avoids "localhost" issues on mobile
+  const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://resume-backend-463635413770.asia-south1.run.app";
+
   // Outreach State
   const [outreachType, setOutreachType] = useState("linkedin");
   const [outreachContent, setOutreachContent] = useState("");
@@ -243,8 +246,7 @@ export default function Home() {
     setIsScraping(true);
     try {
       // Use existing backendUrl logic if available, or fallback
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-      const res = await fetch(`${backendUrl}/scrape-job`, {
+      const res = await fetch(`${API_BASE_URL}/scrape-job`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: scraperUrl })
@@ -272,8 +274,7 @@ export default function Home() {
     setIsGeneratingOutreach(true);
     setEmailSequence([]); // clear previous
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-      const res = await fetch(`${backendUrl}/generate_outreach`, {
+      const res = await fetch(`${API_BASE_URL}/generate_outreach`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -305,7 +306,7 @@ export default function Home() {
   // --- Tracker Handlers ---
   const fetchApplications = async () => {
     try {
-      const res = await fetch("http://localhost:8000/applications");
+      const res = await fetch(`${API_BASE_URL}/applications`);
       if (res.ok) setApplications(await res.json());
       else throw new Error("Failed to fetch applications");
     } catch (e: any) { console.error("Error fetching applications:", e); }
@@ -325,7 +326,7 @@ export default function Home() {
     const title = prompt("Enter Job Title:") || "role";
 
     try {
-      const res = await fetch("http://localhost:8000/applications", {
+      const res = await fetch(`${API_BASE_URL}/applications`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -904,8 +905,8 @@ export default function Home() {
                           key={idx}
                           onClick={() => setActiveEmailIndex(idx)}
                           className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeEmailIndex === idx
-                              ? "bg-white/10 text-cyan-400 border-b-2 border-cyan-400"
-                              : "text-slate-400 hover:text-slate-200"
+                            ? "bg-white/10 text-cyan-400 border-b-2 border-cyan-400"
+                            : "text-slate-400 hover:text-slate-200"
                             }`}
                         >
                           {email.label || `Email ${idx + 1}`}
