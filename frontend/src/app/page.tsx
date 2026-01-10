@@ -134,9 +134,8 @@ export default function Home() {
   const handleDetectAI = async () => {
     if (!yaml) return;
     setStatusMessage("Analysing for AI patterns...");
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
     try {
-      const res = await fetch(`${backendUrl}/detect_ai`, {
+      const res = await fetch(`${API_BASE_URL}/detect_ai`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resume_yaml: yaml, api_key: apiKey })
