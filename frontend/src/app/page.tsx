@@ -46,7 +46,7 @@ export default function Home() {
     setAiDetection(null);
     setCoverLetter("");
 
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "https://resume-backend-463635413770.asia-south1.run.app";
 
     try {
       // --- Step 1: Rewrite ---

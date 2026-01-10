@@ -28,11 +28,19 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https://resume-frontend-463635413770.asia-south1.run.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Manual OPTIONS Handler (CORS fix) ---
+@app.options("/{full_path:path}")
+async def options_handler(full_path: str):
+    return {}
 
 # --- Data Models ---
 
