@@ -5,3 +5,5 @@ google-generativeai
 python-multipart
 pyyaml
 python-dotenv
+reportlab
+gspread

@@ -1,6 +1,6 @@
-venv/
+#.env/
 __pycache__/
-.env
+#.env
 *.pyc
 render_cv_output/
 tmp/

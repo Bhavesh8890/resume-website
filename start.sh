@@ -26,7 +26,7 @@ else
     echo "❌ Error: Virtual environment 'venv' not found in backend/."
     exit 1
 fi
-uvicorn main:app --reload --port 8000 &
+"./venv/bin/uvicorn" main:app --reload --port 8000 &
 # Actually, keeping logs visible is better for debugging, maybe prefix or just let them interleave?
 # Let's let them interleave but maybe clearer to just run.
 # Re-running command without silencing to allow user to see logs
