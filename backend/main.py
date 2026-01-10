@@ -31,11 +31,8 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://resume-frontend-463635413770.asia-south1.run.app",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -43,7 +40,12 @@ app.add_middleware(
 # --- Manual OPTIONS Handler (CORS fix) ---
 @app.options("/{full_path:path}")
 async def options_handler(full_path: str):
-    return {}
+    from fastapi.responses import JSONResponse
+    response = JSONResponse(content={})
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS, PUT, DELETE"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 # --- Data Models ---
 

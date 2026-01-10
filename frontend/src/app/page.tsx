@@ -168,9 +168,8 @@ export default function Home() {
   const handleGenerateCoverLetter = async () => {
     if (!jd || !yaml) return;
     setStatusMessage("Drafting Cover Letter...");
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
     try {
-      const res = await fetch(`${backendUrl}/generate_cover_letter`, {
+      const res = await fetch(`${API_BASE_URL}/generate_cover_letter`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resume_yaml: yaml, job_description: jd, api_key: apiKey })
@@ -190,10 +189,9 @@ export default function Home() {
   const handleDownloadClPdf = async () => {
     if (!coverLetter || !yaml) return;
     setIsGeneratingClPdf(true);
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
     try {
-      const res = await fetch(`${backendUrl}/render_cover_letter_pdf`, {
+      const res = await fetch(`${API_BASE_URL}/render_cover_letter_pdf`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
