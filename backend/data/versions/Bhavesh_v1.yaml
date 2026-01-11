@@ -1,0 +1,77 @@
+cv:
+  name: Bhavesh Kumar Parmar
+  location: Bangalore, IN
+  email: workwithbhaveshcc@gmail.com
+  phone: "+918890569447"
+  social_networks:
+    - network: LinkedIn
+      username: bhavesh8890
+    - network: GitHub
+      username: Bhavesh8890
+  sections:
+    summary:
+      - Cloud Engineer and DevOps Professional with expertise in optimizing AWS, Azure, and GCP infrastructures. Demonstrated success in orchestrating complex cloud migrations, automating CI/CD pipelines, and deploying AI/ML models including Large Language Models (LLMs) and RAG architectures. Skilled in Terraform, Kubernetes, and Python. Achieved 30% reduction in incident resolution times and 25% decrease in system downtime through automated monitoring and reliability engineering
+    experience:
+      - company: Shellkode
+        position: Cloud Engineer
+        location: Bangalore, India
+        start_date: 2025-02
+        end_date: present
+        highlights:
+          - Managed and optimized multi-cloud environments (AWS, Azure, GCP), resolving 100+ complex technical issues related to VPC networking, storage, and compute instances, ensuring 99.9% system availability.
+          - Engineered end-to-end migration of mission-critical systems for a medical sector client from GCP to AWS, enhancing security compliance and reducing operational costs by 20%.
+          - Built and deployed advanced ETL pipelines utilizing AWS S3, DynamoDB, and Lambda, processing over 10TB of data monthly with scalable multi-tenant strategies.
+          - Automated containerized application deployments on Amazon EC2 using AWS Systems Manager (SSM) and Docker, reducing average deployment time by 40%.
+          - Collaborated with the GenAI team to deploy 5+ AI models on cloud infrastructure, supporting 1,000+ daily API requests for LLM and RAG applications.
+          - Spearheaded a knowledge-sharing initiative within the Managed Service Provider (MSP) team, resulting in a 30% reduction in mean time to resolve (MTTR) for support tickets.
+
+    projects:
+      - name: Automated Multi-Cloud DevOps Infrastructure
+        summary: End-to-end CI/CD automation pipeline on AWS.
+        highlights:
+          - Established a fully automated CI/CD pipeline utilizing Terraform (IaC), Ansible, Jenkins, and Kubernetes (EKS), reducing build times by 40%.
+          - Integrated SonarQube for code quality analysis and JFrog Artifactory for artifact management, increasing test coverage by 35% and ensuring secure builds.
+          - Configured Prometheus and Grafana for real-time monitoring and alerting of the Kubernetes cluster, improving incident response time by 50%.
+          - Achieved a 60% reduction in release deployment time by automating infrastructure provisioning, testing, and deployment phases.
+
+      - name: "[Multi-Account AWS Resource MCP Server](https://github.com/Bhavesh8890/MCP-server)"
+        summary: AI-powered terminal assistant for rapid cloud inventory querying.
+        highlights:
+          - Architected a Model Context Protocol (MCP) server mapped to the terminal, enabling natural language queries for resource usage across 15+ AWS child accounts.
+          - Implemented secure read-only access using master account credentials to scan organization-wide inventory, reducing search time from minutes to under 30 seconds.
+          - Streamlined operational workflows by automating the identification of IP addresses, access permissions, and resource locations, saving approximately 10 hours of manual work per week.
+    skills:
+      - label: Cloud Platforms
+        details: Amazon Web Services (AWS EC2, S3, Lambda, VPC, RDS, IAM, CloudWatch), Microsoft Azure (VMs, Monitor), Google Cloud Platform (GCP), OpenStack
+      - label: DevOps & Tools
+        details: Terraform, Ansible, Docker, Kubernetes (EKS, AKS), Jenkins, Git, GitHub Actions, GitLab CI/CD, SonarQube, JFrog, AWS CodePipeline
+      - label: Security & SecOps
+        details: Azure Security Center, AWS Security Hub, Sentinel, SecOps, IAM (Azure AD/Entra ID), Policy & Governance, WAF, Network Security
+      - label: Monitoring & Observability
+        details: Grafana, Prometheus, Elastic Stack (ELK), Azure Monitor, Amazon CloudWatch
+      - label: Networking
+        details: DNS (Route53), TCP/IP, VPC Peering, Transit Gateway, VPN, CDN (CloudFront), ELB/ALB, SSL/TLS, Subnetting
+      - label: AI & Machine Learning
+        details: Generative AI, LLMs (GPT-3, Gemini), RAG, LangChain, LangGraph, Hugging Face, AWS Bedrock, MLOps, Model Deployment
+      - label: Programming & Scripting
+        details: Python, SQL, Java, Bash/Shell Scripting, YAML, HCL, Kotlin
+      - label: Technical Competencies
+        details: Cloud Migration, Infrastructure as Code (IaC), Serverless Architecture, IAM, Linux Administration, System Architecture, Project Management
+      - label: Certifications
+        details: AWS Certified Cloud Practitioner, Oracle AI Vector Professional Certified
+    education:
+      - institution: JIET Jodhpur
+        area: Computer Science & Engineering
+        degree: Bachelor of Technology (B.Tech)
+        start_date: 2020-08
+        end_date: 2024-05
+    leadership_and_extracurricular:
+      - name: President, JIET Student Council
+        highlights:
+          - Led a student body of 150 members, organizing 7 major technical and cultural events.
+          - Secured ₹20 Lakh in corporate sponsorships, demonstrating strong negotiation and stakeholder management skills.
+      - name: Secretary, CSE Department
+        highlights:
+          - Orchestrated 10+ departmental events, including hackathons and career fairs, resulting in a 40% increase in student participation and improved student-faculty engagement scores by 25% based on survey responses.
+design:
+  theme: sb2nov

@@ -153,38 +153,62 @@ async def rewrite_resume(request: RewriteRequest):
     if request.target_region == "germany":
         region_instructions = """
     6. **GERMAN REGION STANDARDS (Lebenslauf)**:
-       - **Strictly Factual & Formal**: Ban all "salesy" adjectives (e.g. remove "Passionate", "Visionary", "Ninja"). Tone must be reserved.
-       - **Mandatory Personal Data**: You MUST include `birth_date` (YYYY-MM-DD), `place_of_birth`, `nationality`, and `marital_status` in the basics section.
-       - **Date Format**: **CRITICAL**: Use strict ISO 8601 format `YYYY-MM-DD` (e.g., 2023-12-01) for ALL dates in the YAML. Do NOT use German `DD.MM.YYYY` format here; the renderer will handle the display.
-       - **Signature**: Add a generic placeholder field `signature: "[Place, Date] [Your Name]"` at the end.
-       - **Structure**: Explicitly separate Education and Experience.
+       - **Tone**: Strictly factual, formal, and results-oriented (Tech focus). Avoid "salesy" adjectives.
+       - **Mandatory Personal Data**: You MUST include `birth_date` (YYYY-MM-DD), `nationality`, `address` (full street address), and `marital_status` in the `basics` section.
+       - **Photo**: Include `picture: "path/to/photo.jpg"` in `basics` (standard practice in Germany).
+       - **Kurzprofil (Professional Summary)**: Include a 3-4 sentence section at the top. Format: Core Tech Stack + Years of Experience + One Major Achievement (e.g. "Senior DevOps Engineer with 8 years...").
+       - **Technical Skills Matrix**: Create a highly detailed `skills` section. Use specific categories (e.g., "Languages", "Cloud/DevOps", "Databases") and indicate proficiency levels where possible.
+       - **Languages**: Use the CEFR scale (e.g. "English (C2 - Native/Fluent)", "German (A2 - Basic)").
+       - **Certifications**: Explicitly list certifications with acquisition dates.
+       - **Hard Facts**: Focus on quantifiable impact (e.g. "Reduced API latency by 30%").
+       - **Signature**: Add a custom field or section for `signature: "[City, Date]"` at the end.
+       - **Date Format**: Use strict ISO 8601 `YYYY-MM-DD` (renderer handles display).
         """
     elif request.target_region == "dubai":
         region_instructions = """
     6. **DUBAI / UAE REGION STANDARDS**:
-       - **Mandatory Demographics**: You MUST include `nationality`, `visa_status`, `gender`, and `date_of_birth` (YYYY-MM-DD) in the basics section.
-       - **Photo Placeholder**: Ensure the YAML has a `picture: "path/to/photo.jpg"` field (it is expected).
-       - **Tech-Heavy**: Prioritize a "Technical Skills" section near the top. UAE recruiters scan for tools first.
+       - **Strict Professional Tone**: Use professional English. Avoid slang or overly casual language.
+       - **Mandatory Personal Details**: You MUST include `nationality`, `visa_status`, `marital_status`, and `date_of_birth` (YYYY-MM-DD) in the `basics` section.
+       - **Photo Placeholder**: Include `picture: "path/to/photo.jpg"` in the `basics` section (this is a placeholder for a professional headshot).
+       - **Professional Summary**: Include a "Professional Summary" section at the top. It must be a 3-4 line snapshot of experience, industry expertise, and key achievements.
+       - **Work Experience**: 
+          - Reverse-chronological order.
+          - Include a brief one-line description of the company business for each role if possible (e.g. as the first bullet).
+          - Use bullet points focusing on **quantifiable achievements** (e.g., "Increased sales by 20%"), not just tasks.
+       - **Education & Skills**: 
+          - Highlight degrees and RELEVANT certifications (PMP, CFA, etc.).
+          - Include a "Languages" section in headers or skills if multilingual (e.g. English, Arabic, Hindi).
+       - **Formatting**: Keep the structure linear and clean (1 column style logic).
        - **Date Format**: Use strict ISO 8601 `YYYY-MM-DD`.
-       - **Conciseness**: Aggressively summarize bullet points.
         """
     elif request.target_region == "uk":
         region_instructions = """
     6. **UK REGION STANDARDS**:
-       - **BRITISH ENGLISH ONLY**: Auto-correct American spellings (e.g., use "Optimised", "Organised", "Programme", "Centre", "Licence").
-       - **Personal Statement**: You MUST write a short, narrative 3-4 line summary at the very top of the resume.
-       - **References**: Append a section `references` with a single item: "References available upon request".
-       - **Strict Prohibitions**: REMOVE `picture`, `gender`, `marital_status`, and `date_of_birth` if present.
-       - **Date Format**: Use strict ISO 8601 `YYYY-MM-DD`.
+       - **Format**: Reverse-Chronological. Prioritize recent, high-level achievements (last 10-15 years).
+       - **Header**: Name, Job Title, Mobile, Email, Location (City, Postcode ONLY), LinkedIn.
+       - **Personal Statement**: 3-5 line summary at the top. Highlight years of experience, technical niche, and a standout quantifiable achievement.
+       - **Key Skills**: Scannable list of 6-10 competencies. Split into Hard Skills (e.g. AWS, Python) and Soft Skills.
+       - **British English**: Use "Optimised", "Organised", "Programme", "Centre".
+       - **Impact**: Use Laszlo Bock formula: "Accomplished [X] as measured by [Y], by doing [Z]".
+       - **Strict Prohibitions**: NO Photos, NO Date of Birth, NO Marital Status, NO Nationality, NO Full Address.
+       - **Certifications**: Highlight industry standards (AWS, Azure, PRINCE2) in a dedicated section.
+       - **References**: Add a section `references` with "References available upon request".
+       - **Date Format**: ISO 8601 `YYYY-MM-DD`.
         """
     elif request.target_region == "usa":
         region_instructions = """
     6. **USA REGION STANDARDS**:
-       - **AMERICAN ENGLISH ONLY**: Use "Optimized", "Organized", "Program", "Center".
-       - **STRICT PROHIBITIONS (Legal)**: You MUST REMOVE `age`, `date_of_birth`, `marital_status`, `religion`, `gender`, and `picture`. These are illegal for hiring consideration.
-       - **Results-Obsessed**: Every bullet point must follow "Action Verb + Task + Quantifiable Result".
-       - **Brevity**: Aim for maximum conciseness (ideal for 1 page).
-       - **Date Format**: Use strict ISO 8601 `YYYY-MM-DD`.
+       - **Format**: Reverse-Chronological. Single-column logic. No tables.
+       - **Header**: Name, Phone, Email, Location (City, State), LinkedIn, GitHub/Portfolio.
+       - **Professional Summary**: 2-4 sentence "hook". Years of experience, core tech stack, major achievement ("Led cloud migration reducing costs by 25%").
+       - **Technical Skills**: Categorize skills (Languages, Cloud, DevOps) for skimmability.
+       - **Work Experience**: Focus on ACCOMPLISHMENTS over duties.
+       - **Formula**: "Accomplished [X] as measured by [Y], by doing [Z]".
+       - **Action Verbs**: Start every bullet with strong verbs (Architected, Automated, Spearheaded, Optimized).
+       - **Quantified Impact**: Percentages, dollar amounts, user growth.
+       - **Strict Prohibitions**: NO `age`, `date_of_birth`, `marital_status`, `religion`, `gender`, `picture`.
+       - **American English**: "Optimized", "Center", "Program".
+       - **Date Format**: ISO 8601 `YYYY-MM-DD`.
         """
     else:
         # Default / International
@@ -281,7 +305,16 @@ async def rewrite_resume(request: RewriteRequest):
                  new_yaml_content = "cv:" + preamble_check[1]
 
         # Analytics
-        log_event("resume_generated", {"target_region": request.target_region, "model": request.model_version})
+        usage = getattr(rewrite_response, 'usage_metadata', None)
+        tokens_input = usage.prompt_token_count if usage else 0
+        tokens_output = usage.candidates_token_count if usage else 0
+        
+        log_event("resume_generated", {
+            "target_region": request.target_region, 
+            "model": request.model_version,
+            "tokens_input": tokens_input,
+            "tokens_output": tokens_output
+        })
 
         # Sanitize: Remove markdown bolding (double asterisks) to prevent YAML alias errors
         # Replaces **Text** with Text
@@ -559,6 +592,14 @@ async def generate_cover_letter(request: CoverLetterRequest):
     try:
         response = model.generate_content(prompt)
         text = response.text.replace("```json", "").replace("```", "").strip()
+        
+        # Analytics
+        usage = getattr(response, 'usage_metadata', None)
+        log_event("cover_letter_generated", {
+            "tokens_input": usage.prompt_token_count if usage else 0,
+            "tokens_output": usage.candidates_token_count if usage else 0
+        })
+
         data = json.loads(text)
         return data
     except Exception as e:
@@ -607,6 +648,15 @@ async def generate_linkedin(request: LinkedInRequest):
     try:
         response = model.generate_content(prompt)
         text = response.text.strip().replace('"', '') # Clean quotes
+        
+        # Analytics
+        usage = getattr(response, 'usage_metadata', None)
+        log_event("outreach_generated", {
+            "type": request.outreach_type,
+            "tokens_input": usage.prompt_token_count if usage else 0,
+            "tokens_output": usage.candidates_token_count if usage else 0
+        })
+        
         return {"content": text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1096,27 +1146,48 @@ async def get_analytics():
     # Total count
     c.execute("SELECT COUNT(*) as count FROM events WHERE event_type='resume_generated'")
     total_resumes = c.fetchone()['count']
+
+    c.execute("SELECT COUNT(*) as count FROM events WHERE event_type='cover_letter_generated'")
+    total_cover_letters = c.fetchone()['count']
     
     # Recent activity
     c.execute("SELECT * FROM events ORDER BY timestamp DESC LIMIT 20")
     recent = [dict(row) for row in c.fetchall()]
     
-    # Theme distribution (parsing JSON in python for simplicity if sqlite json1 not available)
-    c.execute("SELECT details FROM events WHERE event_type='resume_generated'")
-    theme_counts = {}
+    # Detailed aggregation for Charts & Tokens
+    c.execute("SELECT event_type, details FROM events")
     region_counts = {}
+    theme_counts = {}
+    total_input_tokens = 0
+    total_output_tokens = 0
     
     for row in c.fetchall():
         try:
             d = json.loads(row['details'])
-            t = d.get('target_region', 'unknown')
-            region_counts[t] = region_counts.get(t, 0) + 1
+            
+            # Count Tokens
+            total_input_tokens += d.get('tokens_input', 0)
+            total_output_tokens += d.get('tokens_output', 0)
+
+            if row['event_type'] == 'resume_generated':
+                # Region Stats
+                t = d.get('target_region', 'unknown')
+                region_counts[t] = region_counts.get(t, 0) + 1
+                
+                # Theme Stats (if available)
+                th = d.get('theme', 'unknown')
+                theme_counts[th] = theme_counts.get(th, 0) + 1
+                
         except: pass
 
     conn.close()
     return {
         "total_resumes": total_resumes,
+        "total_cover_letters": total_cover_letters,
+        "total_tokens_input": total_input_tokens,
+        "total_tokens_output": total_output_tokens,
         "region_distribution": region_counts,
+        "theme_distribution": theme_counts,
         "recent_activity": recent
     }
 

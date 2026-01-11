@@ -36,6 +36,20 @@ export default function Home() {
   type Step = "idle" | "rewriting" | "analyzing" | "rendering" | "complete" | "error";
   const [currentStep, setCurrentStep] = useState<Step>("idle");
   const [statusMessage, setStatusMessage] = useState("");
+  const [elapsedTime, setElapsedTime] = useState(0); // Timer state
+
+  // Timer Effect
+  useEffect(() => {
+    let interval: any;
+    if (currentStep !== 'idle' && currentStep !== 'complete' && currentStep !== 'error') {
+      interval = setInterval(() => {
+        setElapsedTime(prev => prev + 1);
+      }, 1000);
+    } else {
+      setElapsedTime(0);
+    }
+    return () => clearInterval(interval);
+  }, [currentStep]);
 
   // Version Control State
   const [versions, setVersions] = useState<string[]>([]);
@@ -64,6 +78,10 @@ export default function Home() {
   const [coverLetter, setCoverLetter] = useState<string>("");
   const [isGeneratingClPdf, setIsGeneratingClPdf] = useState(false);
 
+  // Diff State
+  const [originalYaml, setOriginalYaml] = useState("");
+  const [showDiff, setShowDiff] = useState(false);
+
   // Outreach State
   type OutreachType = "linkedin" | "cold_email" | "follow_up";
   const [outreachType, setOutreachType] = useState<OutreachType>("linkedin");
@@ -81,10 +99,13 @@ export default function Home() {
 
   const handleGenerate = async () => {
     // Reset
+    // Reset
     setPdfUrl(null);
     setAtsAnalysis(null);
     setAiDetection(null);
     setCoverLetter("");
+    setOriginalYaml(yaml); // Save original for diff
+    setShowDiff(false);
 
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "https://resume-backend-463635413770.asia-south1.run.app";
 
@@ -291,7 +312,7 @@ export default function Home() {
   };
 
   const handleLoadVersion = async (name: string) => {
-    if (!confirm(`Load version "${name}"? Unsaved changes will be lost.`)) return;
+    // if (!confirm(`Load version "${name}"? Unsaved changes will be lost.`)) return; // REMOVED POPUP
     try {
       const res = await fetch(`${API_BASE_URL}/versions/${name}`);
       if (res.ok) {
@@ -315,7 +336,7 @@ export default function Home() {
       const data = await res.json();
       if (res.ok) {
         setJd(data.description);
-        alert("Job Description Imported!");
+        // alert("Job Description Imported!"); // REMOVED POPUP
       } else {
         throw new Error(data.detail || "Scraping failed");
       }
@@ -471,743 +492,666 @@ export default function Home() {
         <div className="absolute top-[40%] left-[-10%] w-[400px] h-[400px] bg-cyan-600/20 rounded-full blur-[100px] animate-pulse-slow mix-blend-screen" />
       </div>
 
-      <div className="max-w-[1600px] mx-auto p-4 md:p-8 relative z-10">
+      {/* --- Header / Nav --- */}
+      <div className="h-16 border-b border-white/10 bg-[#0A0A0B]/80 backdrop-blur-xl flex items-center justify-between px-8 sticky top-0 z-50 shadow-2xl shadow-violet-500/5">
+        <div className="flex items-center gap-3 group cursor-default">
+          <div className="relative">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-violet-600 flex items-center justify-center transform group-hover:rotate-12 transition-transform duration-500">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+            </div>
+            <div className="absolute -inset-2 bg-cyan-500/20 rounded-xl blur-lg group-hover:bg-cyan-500/40 transition-colors" />
+          </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex justify-center mb-8 gap-4">
-          <button
-            onClick={() => setActiveTab('builder')}
-            className={`px-6 py-2 rounded-full font-bold transition-all ${activeTab === 'builder' ? 'bg-fuchsia-600 text-white shadow-lg shadow-fuchsia-500/20' : 'bg-white/5 hover:bg-white/10 text-slate-400'}`}
-          >
-            Resume Builder
-          </button>
-          <button
-            onClick={() => setActiveTab('outreach')}
-            className={`px-6 py-2 rounded-full font-bold transition-all ${activeTab === 'outreach' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/20' : 'bg-white/5 hover:bg-white/10 text-slate-400'}`}
-          >
-            Outreach AI
-          </button>
-          <button
-            onClick={() => setActiveTab('analytics')}
-            className={`px-6 py-2 rounded-full font-bold transition-all ${activeTab === 'analytics' ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20' : 'bg-white/5 hover:bg-white/10 text-slate-400'}`}
-          >
-            Analytics
-          </button>
-          <button
-            onClick={() => setActiveTab('tracker')}
-            className={`px-6 py-2 rounded-full font-bold transition-all ${activeTab === 'tracker' ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20' : 'bg-white/5 hover:bg-white/10 text-slate-400'}`}
-          >
-            Job Tracker
-          </button>
+          <div className="flex flex-col">
+            <h1 className="text-2xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-slate-400">
+              Antigravity<span className="text-cyan-400">.</span>Builder
+            </h1>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase">AI-Powered Resume Engine</span>
+              <span className="px-1.5 py-0.5 rounded-md bg-violet-500/10 border border-violet-500/20 text-[9px] text-violet-400 font-bold font-mono">v2.1</span>
+            </div>
+          </div>
         </div>
 
-        {/* Header */}
-        {activeTab === 'builder' && (
-          <div className="mb-12">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-md shadow-lg animate-fade-in-up">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">v2.1 • AI Augmented</span>
-            </div>
-
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-center animate-fade-in-up delay-100">
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-slate-400">Antigravity</span>
-              <span className="block text-4xl md:text-5xl mt-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-violet-400 to-fuchsia-400 font-extrabold drop-shadow-2xl animate-text-shimmer">
-                Resume Builder
+        {/* Modern Pills Navigation */}
+        <div className="flex items-center gap-1 bg-white/5 p-1.5 rounded-2xl border border-white/5 backdrop-blur-sm">
+          {['builder', 'outreach', 'analytics', 'tracker'].map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`relative px-6 py-2 rounded-xl text-xs font-bold transition-all duration-300 capitalize overflow-hidden group/btn ${activeTab === tab ? 'text-white' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              {activeTab === tab && (
+                <div className="absolute inset-0 bg-gradient-to-r from-cyan-600 to-violet-600 shadow-lg shadow-cyan-500/25 rounded-xl animate-fade-in" />
+              )}
+              <span className="relative z-10 flex items-center gap-2">
+                {/* Icons for tabs */}
+                {tab === 'builder' && <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>}
+                {tab === 'outreach' && <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}
+                {tab === 'analytics' && <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>}
+                {tab === 'tracker' && <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>}
+                {tab}
               </span>
-            </h1>
-          </div>
-        )}
+            </button>
+          ))}
+        </div>
 
-        {/* --- MAIN BUILDER TAB --- */}
+        <div className="w-10"></div> {/* Balancer */}
+      </div>
+
+      <div className="h-[calc(100vh-4rem)] p-4 overflow-hidden relative z-10">
+
+        {/* --- MAIN BUILDER LAYOUT --- */}
         {activeTab === 'builder' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="grid grid-cols-12 gap-6 h-full">
 
-            {/* --- LEFT COLUMN: Controls --- */}
-            <div className="lg:col-span-4 space-y-6 animate-slide-in-left">
-              <div className="bg-slate-900/40 backdrop-blur-2xl border border-white/10 p-6 rounded-3xl shadow-2xl relative overflow-hidden group">
-                {/* Subtle top sheen */}
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-50" />
+            {/* --- LEFT COLUMN: EDITOR (4Cols) --- */}
+            <div className="col-span-4 flex flex-col gap-4 h-full overflow-hidden">
 
-                <h2 className="text-xl font-bold flex items-center gap-3 text-white mb-6">
-                  <div className="p-2 bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg border border-white/5 shadow-inner">
-                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
+              {/* 1. Configuration Panel (Scrollable) */}
+              <div className="flex-1 bg-[#13161c] border border-white/10 rounded-2xl p-4 overflow-y-auto custom-scrollbar flex flex-col gap-4">
+
+                {/* Top Row: Theme & Region */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Theme</label>
+                    <select value={theme} onChange={(e) => setTheme(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-slate-300 outline-none">
+                      <option value="classic">Classic</option>
+                      <option value="engineering">Engineering</option>
+                      <option value="sb2nov">Modern (sb2nov)</option>
+                      <option value="moderncv">Stylish</option>
+                    </select>
                   </div>
-                  Configuration
-                </h2>
-
-                <div className="space-y-5">
-
-                  {/* Version Control */}
-                  <div className="space-y-2 mb-6 pb-6 border-b border-white/10">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Saved Versions</label>
-                    <div className="flex gap-2">
-                      <select
-                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-slate-200 outline-none"
-                        onChange={(e) => handleLoadVersion(e.target.value)}
-                        value=""
-                      >
-                        <option value="" disabled>Load Saved Resume...</option>
-                        {versions.map(v => <option key={v} value={v}>{v}</option>)}
-                      </select>
-                      <button
-                        onClick={() => setShowSaveVersion(!showSaveVersion)}
-                        className="px-3 bg-white/10 hover:bg-white/20 rounded-xl text-slate-300 transition-colors"
-                        title="Save Current Version"
-                      >
-                        💾
-                      </button>
-                    </div>
-                    {/* Save Input */}
-                    {showSaveVersion && (
-                      <div className="flex gap-2 mt-2 animate-fade-in-down">
-                        <input
-                          className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
-                          placeholder="Version Name (e.g. 'Backend Dev')"
-                          value={newVersionName}
-                          onChange={e => setNewVersionName(e.target.value)}
-                        />
-                        <button
-                          onClick={handleSaveVersion}
-                          className="px-3 py-1 bg-green-600/20 text-green-400 border border-green-500/30 rounded-lg text-xs font-bold hover:bg-green-600/30"
-                        >
-                          Save
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Theme Selector */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Design Theme</label>
-                    <div className="relative">
-                      <select
-                        value={theme}
-                        onChange={(e) => setTheme(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-200 focus:ring-2 focus:ring-violet-500/50 focus:border-violet-500/50 outline-none transition-all appearance-none cursor-pointer hover:bg-white/10"
-                      >
-                        <option value="classic">Classic Professional</option>
-                        <option value="engineering">Engineering Clean</option>
-                        <option value="sb2nov">Modern Minimal (sb2nov)</option>
-                        <option value="moderncv">Stylish Two-Column</option>
-                      </select>
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Target Country Selector */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Target Country Profile</label>
-                    <div className="relative">
-                      <select
-                        value={targetRegion}
-                        onChange={(e) => setTargetRegion(e.target.value)}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-200 focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500/50 outline-none transition-all appearance-none cursor-pointer hover:bg-white/10"
-                      >
-                        <option value="international">International / Global (Default)</option>
-                        <option value="germany">Germany (Lebenslauf Standard)</option>
-                        <option value="dubai">Dubai / UAE (Regional Norms)</option>
-                        <option value="uk">United Kingdom (Professional)</option>
-                        <option value="usa">USA (Concise Analysis)</option>
-                      </select>
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* API Key */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Gemini API Key</label>
-                    <input
-                      type="password"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-600 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 outline-none transition-all"
-                      placeholder="Optional (if set in backend)"
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                    />
-                  </div>
-
-                  {/* User Instructions (Comments) */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Additional Instructions</label>
-                    <textarea
-                      className="w-full h-24 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-600 focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 outline-none resize-none transition-all custom-scrollbar hover:bg-white/10"
-                      placeholder="E.g. 'Focus on my Python experience', 'Remove the 2019 internship', 'Make it strictly 1 page'..."
-                      value={userComments}
-                      onChange={(e) => setUserComments(e.target.value)}
-                    />
-                  </div>
-
-                  {/* Job Description */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-300">Job Description</label>
-
-                    {/* Scraper Input */}
-                    <div className="flex gap-2 mb-2">
-                      <input
-                        type="text"
-                        placeholder="Paste Job Post URL (LinkedIn/Indeed)..."
-                        className="flex-1 bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-sm text-slate-200 focus:border-cyan-500/50 outline-none"
-                        value={scraperUrl}
-                        onChange={(e) => setScraperUrl(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleScrapeJob}
-                        disabled={isScraping || !scraperUrl}
-                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
-                      >
-                        {isScraping ? "Importing..." : "Import JD"}
-                      </button>
-                    </div>
-
-                    <textarea
-                      className="w-full h-40 bg-black/40 border border-white/10 rounded-xl p-4 text-sm text-slate-300 focus:border-cyan-500/50 outline-none transition-all resize-none"
-                      placeholder="Paste the job description here or import from URL..."
-                      value={jd}
-                      onChange={(e) => setJd(e.target.value)}
-                    />
-                  </div>
-
-                  {/* Resume YAML */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Resume YAML</label>
-                    <div className="relative group/editor">
-                      <textarea
-                        className="w-full h-64 bg-[#0F1115] border border-white/10 rounded-xl px-4 py-3 text-xs font-mono text-slate-300 placeholder-slate-700 focus:ring-2 focus:ring-fuchsia-500/50 focus:border-fuchsia-500/50 outline-none resize-none transition-all custom-scrollbar leading-relaxed"
-                        placeholder="Paste your RenderCV YAML content here..."
-                        value={yaml}
-                        onChange={(e) => setYaml(e.target.value)}
-                        spellCheck={false}
-                      />
-                      <div className="absolute top-2 right-2 px-2 py-1 bg-white/10 rounded text-[10px] text-slate-400 opacity-0 group-hover/editor:opacity-100 transition-opacity pointer-events-none">
-                        YAML Editor
-                      </div>
-                    </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Region</label>
+                    <select value={targetRegion} onChange={(e) => setTargetRegion(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-slate-300 outline-none">
+                      <option value="international">Global</option>
+                      <option value="usa">USA</option>
+                      <option value="germany">Germany</option>
+                      <option value="dubai">Dubai / UAE</option>
+                      <option value="uk">United Kingdom</option>
+                    </select>
                   </div>
                 </div>
 
-                {/* Action Button */}
-                <div className="mt-8 pt-6 border-t border-white/10">
-                  <button
-                    onClick={handleGenerate}
-                    disabled={currentStep !== "idle" && currentStep !== "complete" && currentStep !== "error"}
-                    className={`relative w-full py-4 rounded-xl font-bold text-white shadow-lg overflow-hidden group transition-all transform hover:-translate-y-1 hover:shadow-2xl 
-                    ${(currentStep !== "idle" && currentStep !== "complete" && currentStep !== "error") || !jd || !yaml
-                        ? "bg-slate-800 cursor-not-allowed opacity-50 grayscale"
-                        : "bg-gradient-to-r from-cyan-500 via-violet-500 to-fuchsia-500 animate-border-glow shadow-violet-500/40"
-                      }`}
-                  >
-                    <div className="absolute inset-0 bg-white/20 group-hover:translate-x-full duration-1000 transform -skew-x-12 -translate-x-full transition-transform ease-out" />
-                    <span className="relative z-10 flex items-center justify-center gap-3 text-lg">
-                      {currentStep === 'idle' || currentStep === 'complete' || currentStep === 'error' ? (
-                        <>
-                          <svg className="w-5 h-5 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                          </svg>
-                          Optimize Resume
-                        </>
-                      ) : (
-                        <>
-                          <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Processing...
-                        </>
-                      )}
-                    </span>
+                {/* Job Description (Compact) */}
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Job Description</label>
+                    <button onClick={() => handleScrapeJob()} disabled={!scraperUrl} className="text-[10px] text-cyan-400 hover:text-cyan-300 disabled:text-slate-600">
+                      {isScraping ? "..." : "Import URL"}
+                    </button>
+                  </div>
+                  <input
+                    placeholder="JD URL..."
+                    className="w-full bg-black/40 border border-white/10 rounded-md px-2 py-1 text-xs text-slate-400 mb-1"
+                    value={scraperUrl} onChange={e => setScraperUrl(e.target.value)}
+                  />
+                  <textarea
+                    className="w-full h-24 bg-black/40 border border-white/10 rounded-lg p-2 text-xs text-slate-400 resize-none outline-none focus:border-cyan-500/40"
+                    placeholder="Paste Job Description..."
+                    value={jd}
+                    onChange={(e) => setJd(e.target.value)}
+                  />
+                </div>
+
+                {/* Resume YAML Editor (Expands) */}
+                <div className="flex-1 flex flex-col min-h-[200px]">
+                  <div className="flex justify-between items-end mb-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Resume YAML</label>
+                    {/* Version Loader */}
+                    <div className="flex items-center gap-1">
+                      <select className="bg-transparent border border-white/10 rounded px-1 text-[10px] text-slate-400" onChange={(e) => handleLoadVersion(e.target.value)} value="">
+                        <option value="" disabled>Load Saved...</option>
+                        {versions.map(v => <option key={v} value={v}>{v}</option>)}
+                      </select>
+                      <button onClick={() => setShowSaveVersion(true)} className="text-[10px] text-slate-400 hover:text-white">💾</button>
+                    </div>
+                  </div>
+
+                  {/* Inline Save Input */}
+                  {showSaveVersion && (
+                    <div className="flex gap-1 mb-1 items-center bg-black/40 p-1 rounded border border-white/10">
+                      <input className="flex-1 bg-transparent text-xs text-white outline-none" placeholder="Version Name..." value={newVersionName} onChange={e => setNewVersionName(e.target.value)} autoFocus />
+                      <button onClick={handleSaveVersion} className="text-[10px] text-green-400 px-2 font-bold">SAVE</button>
+                      <button onClick={() => setShowSaveVersion(false)} className="text-[10px] text-slate-500 hover:text-white px-1">✕</button>
+                    </div>
+                  )}
+
+                  <textarea
+                    className="flex-1 w-full bg-[#0B0D10] border border-white/10 rounded-lg p-3 text-[11px] font-mono text-slate-300 leading-relaxed resize-none outline-none focus:border-violet-500/40 custom-scrollbar"
+                    value={yaml}
+                    onChange={(e) => setYaml(e.target.value)}
+                    spellCheck={false}
+                  />
+                </div>
+              </div>
+
+              {/* 2. Action Footer */}
+              <div className="h-20 bg-[#13161c] border border-white/10 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-2xl z-20">
+                <div className="flex gap-2">
+                  <button onClick={handleDetectAI} title="Check AI" disabled={!yaml} className="p-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-cyan-300 transition-colors">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                  </button>
+                  <button onClick={handleGenerateCoverLetter} title="Cover Letter" disabled={!yaml} className="p-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-fuchsia-300 transition-colors">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                   </button>
                 </div>
 
-                {/* Progress Indicators */}
-                {(currentStep !== "idle" && currentStep !== "error") && (
-                  <div className="mt-6 p-4 bg-black/40 rounded-xl border border-white/5 backdrop-blur-md">
-                    <p className="text-xs font-bold text-cyan-300 mb-4 text-center animate-pulse tracking-wide">
-                      {statusMessage}
-                    </p>
-                    <div className="flex justify-between relative px-4">
-                      {/* Line */}
-                      <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-800 -z-0 -translate-y-1/2" />
-                      <div
-                        className="absolute top-1/2 left-0 h-0.5 bg-gradient-to-r from-cyan-500 to-violet-500 -z-0 -translate-y-1/2 transition-all duration-700"
-                        style={{ width: currentStep === 'analyzing' ? '50%' : currentStep === 'complete' ? '100%' : '0%' }}
-                      />
+                <button
+                  onClick={handleGenerate}
+                  disabled={!jd || !yaml || (currentStep !== "idle" && currentStep !== "complete" && currentStep !== "error")}
+                  className="flex-1 h-full bg-gradient-to-r from-cyan-600 to-violet-600 rounded-xl font-bold text-white shadow-lg hover:shadow-cyan-500/25 transition-all text-sm flex items-center justify-center gap-2 group disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
+                >
+                  {currentStep === 'idle' || currentStep === 'complete' || currentStep === 'error' ? (
+                    <>
+                      <span>{(!jd || !yaml) ? "Add JD & Resume to Start" : "Optimize Resume"}</span>
+                      <svg className="w-4 h-4 text-white/70 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    </>
+                  ) : "Processing..."}
+                </button>
+              </div>
+            </div>
 
-                      {steps.map((s) => {
-                        const status = getStepStatus(s.id);
-                        return (
-                          <div key={s.id} className="relative z-10 flex flex-col items-center gap-2">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 shadow-xl
-                              ${status === 'completed' ? 'bg-green-500 border-green-500 text-white scale-110 shadow-green-500/30' :
-                                status === 'active' ? 'bg-gradient-to-br from-violet-600 to-fuchsia-600 border-violet-400 text-white scale-125 animate-pulse shadow-violet-500/50' :
-                                  'bg-slate-900 border-slate-700 text-slate-600'}`}>
-                              {status === 'completed' ? <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> : <span className="text-white">{s.icon}</span>}
-                            </div>
-                          </div>
-                        )
-                      })}
+            {/* --- RIGHT COLUMN: PREVIEW (8Cols) --- */}
+            <div className="col-span-8 bg-[#1E1E24] border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col relative group">
+
+              {/* Overlay Status Bar */}
+              {/* Overlay Status Bar (INNOVATIVE LOADER) */}
+              {(statusMessage && currentStep !== 'idle' && currentStep !== 'complete' && currentStep !== 'error') && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
+
+                  {/* Cyberpunk Loader Card */}
+                  <div className="relative w-96 bg-[#0B0D10]/90 border border-cyan-500/30 p-8 rounded-2xl shadow-2xl shadow-cyan-500/20 overflow-hidden group">
+
+                    {/* Scanning Line */}
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-cyber-scan" />
+
+                    {/* Background Grid Subtle */}
+                    <div className="absolute inset-0 bg-grid-pattern opacity-10 pointer-events-none" />
+
+                    <div className="relative z-10 flex flex-col items-center gap-6">
+
+                      {/* Central Pulse Icon */}
+                      <div className="relative">
+                        <div className="w-16 h-16 rounded-full border-2 border-cyan-500/30 flex items-center justify-center animate-spin-slow">
+                          <div className="w-12 h-12 rounded-full border-2 border-violet-500/50 border-t-transparent animate-spin" />
+                        </div>
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-cyan-500 rounded-full blur-md animate-pulse" />
+                        <svg className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                      </div>
+
+                      {/* Text Content */}
+                      <div className="text-center space-y-2">
+                        <h3 className="text-xl font-bold text-white tracking-widest uppercase animate-pulse">
+                          System Optimizing
+                        </h3>
+                        <div className="h-0.5 w-24 mx-auto bg-gradient-to-r from-transparent via-cyan-500 to-transparent" />
+                        <p className="text-xs font-mono text-cyan-300 animate-glitch-text">
+                          {statusMessage}...
+                        </p>
+                        <p className="text-[10px] font-mono text-slate-500">
+                          Time Elapsed: <span className="text-white">{elapsedTime}s</span>
+                        </p>
+                      </div>
+
+                      {/* Fake Terminal Output */}
+                      <div className="w-full bg-black/50 rounded-lg p-3 border border-white/5 font-mono text-[10px] text-slate-400 h-20 overflow-hidden flex flex-col justify-end">
+                        <div className="opacity-50">Checking ATS compatibility... OK</div>
+                        <div className="opacity-70">Injecting keywords... OK</div>
+                        <div className="text-cyan-400">Rendering high-res PDF...</div>
+                        <div className="animate-pulse">_</div>
+                      </div>
+
                     </div>
-                    <div className="flex justify-between mt-2 px-1">
-                      {steps.map((s) => (
-                        <span key={s.id + "lbl"} className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">
-                          {s.label}
-                        </span>
-                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Toolbar */}
+              <div className="h-12 bg-black/20 border-b border-white/5 flex items-center justify-between px-4">
+                <div className="flex gap-2">
+                  <button onClick={() => { setActiveResultTab('resume'); setShowDiff(false); }} className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors ${activeResultTab === 'resume' && !showDiff ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Results</button>
+                  <button onClick={() => { setActiveResultTab('resume'); setShowDiff(true); }} className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors ${showDiff ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Diff View</button>
+                  <button onClick={() => { setActiveResultTab('cover-letter'); setShowDiff(false); }} className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors ${activeResultTab === 'cover-letter' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Cover Letter</button>
+                </div>
+                {/* Download Actions (Compact) */}
+                {activeResultTab === "resume" && pdfUrl && (
+                  <div className="flex gap-2 items-center">
+                    <button
+                      onClick={async () => {
+                        const company = window.prompt("Company Name?", "Target Company");
+                        if (!company) return;
+                        const title = window.prompt("Job Title?", "Software Engineer");
+                        if (!title) return;
+
+                        try {
+                          const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000"}/applications`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              company_name: company,
+                              job_title: title,
+                              date_applied: new Date().toISOString().split('T')[0],
+                              status: "Applied",
+                              job_description: jobDescription
+                            })
+                          });
+                          if (response.ok) {
+                            alert("Saved to Tracker!");
+                            fetchApplications(); // Refresh tracker
+                          } else {
+                            alert("Failed to save.");
+                          }
+                        } catch (e) {
+                          console.error(e);
+                          alert("Error saving to tracker.");
+                        }
+                      }}
+                      className="text-xs font-bold text-green-400 hover:text-green-300 flex items-center gap-1 border border-green-500/20 bg-green-500/10 px-2 py-1 rounded"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                      Save to Tracker
+                    </button>
+                    <a href={pdfUrl} download="resume.pdf" className="text-xs font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                      Download PDF
+                    </a>
+                  </div>
+                )}
+                {activeResultTab === "cover-letter" && coverLetter && (
+                  <div className="flex gap-2 items-center">
+                    <button onClick={handleDownloadClPdf} disabled={isGeneratingClPdf} className="text-xs font-bold text-fuchsia-400 hover:text-fuchsia-300 flex items-center gap-1 disabled:opacity-50">
+                      {isGeneratingClPdf ? "Generating..." : (
+                        <>
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                          Download PDF
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Main Viewport */}
+              <div className="flex-1 relative bg-gray-500/5 overflow-hidden">
+                {activeResultTab === "resume" ? (
+                  pdfUrl ? (
+                    <iframe src={pdfUrl} className="w-full h-full" />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-slate-600 space-y-4">
+                      <div className="w-20 h-20 rounded-2xl bg-white/5 flex items-center justify-center">
+                        <svg className="w-10 h-10 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      </div>
+                      <p className="font-medium text-sm">Preview will appear here</p>
                     </div>
+                  )
+                ) : showDiff ? (
+                  <div className="w-full h-full p-4 grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-2 h-full">
+                      <span className="text-xs font-bold text-red-400 uppercase">Original YAML</span>
+                      <textarea className="flex-1 bg-black/40 border border-red-500/20 rounded-xl p-4 text-[10px] font-mono text-neutral-400 resize-none outline-none" readOnly value={originalYaml || "No original version saved."} />
+                    </div>
+                    <div className="flex flex-col gap-2 h-full">
+                      <span className="text-xs font-bold text-green-400 uppercase">Optimized YAML</span>
+                      <textarea className="flex-1 bg-black/40 border border-green-500/20 rounded-xl p-4 text-[10px] font-mono text-neutral-200 resize-none outline-none" readOnly value={yaml} />
+                    </div>
+                  </div>
+                ) : (
+                  <textarea
+                    className="w-full h-full bg-transparent p-8 text-slate-300 resize-none outline-none font-serif leading-relaxed"
+                    value={coverLetter}
+                    onChange={e => setCoverLetter(e.target.value)}
+                    placeholder="Cover letter draft..."
+                  />
+                )}
+
+                {/* ATS Overlay Score (Floating) */}
+                {atsAnalysis && (
+                  <div className="absolute bottom-6 right-6 bg-slate-900/90 backdrop-blur-xl border border-white/10 p-4 rounded-2xl shadow-2xl w-64 animate-slide-in-right transform hover:scale-105 transition-transform cursor-default z-10">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-xs font-bold text-slate-400 uppercase">ATS Score</span>
+                      <span className={`text-xl font-black ${atsAnalysis.score >= 80 ? 'text-green-400' : 'text-orange-400'}`}>{atsAnalysis.score}/100</span>
+                    </div>
+                    <div className="h-1.5 bg-white/10 rounded-full overflow-hidden mb-3">
+                      <div className={`h-full rounded-full ${atsAnalysis.score >= 80 ? 'bg-green-500' : 'bg-orange-500'}`} style={{ width: `${atsAnalysis.score}%` }} />
+                    </div>
+                    <p className="text-[10px] text-slate-300 line-clamp-2">{atsAnalysis.feedback}</p>
                   </div>
                 )}
 
-                {/* Tools Grid */}
-                <div className="grid grid-cols-2 gap-3 mt-4">
-                  <button
-                    onClick={handleDetectAI}
-                    disabled={!yaml}
-                    className="group p-4 bg-white/5 border border-white/5 rounded-xl hover:bg-white/10 transition-all flex flex-col items-center gap-2 text-slate-400 hover:text-cyan-300 disabled:opacity-50"
-                  >
-                    <svg className="w-8 h-8 grayscale group-hover:grayscale-0 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                    <span className="text-xs font-bold uppercase tracking-wider">Check AI Logic</span>
-                  </button>
-                  <button
-                    onClick={handleGenerateCoverLetter}
-                    disabled={!yaml || !jd}
-                    className="group p-4 bg-white/5 border border-white/5 rounded-xl hover:bg-white/10 transition-all flex flex-col items-center gap-2 text-slate-400 hover:text-fuchsia-300 disabled:opacity-50"
-                  >
-                    <svg className="w-8 h-8 grayscale group-hover:grayscale-0 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    <span className="text-xs font-bold uppercase tracking-wider">Draft Cover Letter</span>
-                  </button>
-                </div>
+                {/* AI Detection Result Overlay */}
+                {aiDetection && (
+                  <div className="absolute top-0 right-0 h-full w-80 bg-slate-900/95 backdrop-blur-xl border-l border-white/10 p-6 overflow-y-auto z-50 animate-slide-in-right shadow-2xl">
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="font-bold text-white flex items-center gap-2">
+                        <svg className="w-5 h-5 text-fuchsia-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                        Pattern Detector
+                      </h3>
+                      <button onClick={() => setAiDetection(null)} className="text-slate-400 hover:text-white transition-colors">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
 
+                    <div className="space-y-6">
+                      {/* Score */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-end">
+                          <span className="text-xs text-slate-400 font-bold uppercase">Human Score</span>
+                          <span className={`text-2xl font-black ${aiDetection.human_score > 80 ? 'text-green-400' : 'text-orange-400'}`}>{aiDetection.human_score}%</span>
+                        </div>
+                        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full transition-all duration-1000 ${aiDetection.human_score > 80 ? 'bg-green-500' : 'bg-orange-500'}`} style={{ width: `${aiDetection.human_score}%` }} />
+                        </div>
+                      </div>
+
+                      {/* Summary */}
+                      <div className="p-4 bg-white/5 border border-white/5 rounded-xl text-sm text-slate-300 italic">
+                        "{aiDetection.summary}"
+                      </div>
+
+                      {/* Items */}
+                      <div className="space-y-3">
+                        {aiDetection.items.map((item: any, i: number) => (
+                          <div key={i} className="bg-black/40 border border-white/5 p-3 rounded-lg text-xs space-y-1">
+                            <div className="flex justify-between">
+                              <span className="text-red-400/80 line-through decoration-red-500/50">{item.phrase}</span>
+                              <span className="text-[10px] text-slate-500 uppercase tracking-wide">{item.reason}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-green-400 font-bold">
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                              {item.suggestion}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* --- ANALYTICS TAB (Builder Theme) --- */}
+        {activeTab === 'analytics' && (
+          <div className="h-full bg-[#13161c] border border-white/10 rounded-2xl p-8 overflow-y-auto custom-scrollbar shadow-2xl">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-3xl font-bold text-white mb-2">Usage Analytics</h2>
+                <p className="text-slate-400 text-sm">Track your generation metrics and AI token usage.</p>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-xs font-mono text-slate-400">Live System</span>
               </div>
             </div>
 
-            {/* --- RIGHT COLUMN: Results --- */}
-            <div className="lg:col-span-8 space-y-6 animate-slide-in-right">
+            {!dashboardStats ? (
+              <div className="h-64 flex items-center justify-center">
+                <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-8 animate-fade-in">
 
-              {/* ATS Score Card */}
-              {atsAnalysis && (
-                <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 p-6 rounded-3xl shadow-2xl relative overflow-hidden">
-                  {/* Background Glow */}
-                  <div className={`absolute -right-20 -top-20 w-64 h-64 rounded-full blur-[100px] opacity-20 pointer-events-none 
-                  ${atsAnalysis.score >= 80 ? 'bg-green-500' : 'bg-red-500'}`} />
+                {/* Top KPI Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-[#1E1E24] border border-white/5 p-5 rounded-xl flex flex-col items-center justify-center gap-2 group hover:border-cyan-500/30 transition-all">
+                    <div className="text-4xl font-black text-white group-hover:text-cyan-400 transition-colors">{dashboardStats.total_resumes}</div>
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">Resumes Generated</div>
+                  </div>
+                  <div className="bg-[#1E1E24] border border-white/5 p-5 rounded-xl flex flex-col items-center justify-center gap-2 group hover:border-fuchsia-500/30 transition-all">
+                    <div className="text-4xl font-black text-white group-hover:text-fuchsia-400 transition-colors">{dashboardStats.total_cover_letters || 0}</div>
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">Cover Letters</div>
+                  </div>
+                  <div className="bg-[#1E1E24] border border-white/5 p-5 rounded-xl flex flex-col items-center justify-center gap-2 group hover:border-violet-500/30 transition-all">
+                    <div className="text-4xl font-black text-white group-hover:text-violet-400 transition-colors">{(dashboardStats.total_tokens_input || 0).toLocaleString()}</div>
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">Input Tokens</div>
+                  </div>
+                  <div className="bg-[#1E1E24] border border-white/5 p-5 rounded-xl flex flex-col items-center justify-center gap-2 group hover:border-indigo-500/30 transition-all">
+                    <div className="text-4xl font-black text-white group-hover:text-indigo-400 transition-colors">{(dashboardStats.total_tokens_output || 0).toLocaleString()}</div>
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">Output Tokens</div>
+                  </div>
+                </div>
 
-                  <div className="flex flex-col md:flex-row gap-8 items-center relative z-10">
-                    {/* Donut Chart */}
-                    <div className="relative w-40 h-40 flex-shrink-0">
-                      <svg className="w-full h-full transform -rotate-90 filter drop-shadow-lg">
-                        <circle cx="80" cy="80" r="70" stroke="#1e293b" strokeWidth="12" fill="transparent" />
-                        <circle
-                          cx="80" cy="80" r="70"
-                          stroke="currentColor" strokeWidth="12" fill="transparent"
-                          strokeDasharray={439.82}
-                          strokeDashoffset={439.82 - (439.82 * atsAnalysis.score) / 100}
-                          className={`transition-all duration-1500 ease-out 
-                            ${atsAnalysis.score >= 80 ? 'text-green-500' : atsAnalysis.score >= 70 ? 'text-yellow-500' : 'text-red-500'}`}
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-5xl font-black text-white">{atsAnalysis.score}</span>
-                        <span className="text-xs font-bold uppercase text-slate-400 mt-1">ATS Score</span>
-                      </div>
-                    </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                    <div className="flex-1 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-2xl font-bold text-white">ATS Analysis</h3>
-                        <span className={`px-3 py-1 text-xs font-bold rounded-full border 
-                           ${atsAnalysis.score >= 80 ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
-                          {atsAnalysis.score >= 80 ? "EXCELLENT MATCH" : "OPTIMIZATION NEEDED"}
-                        </span>
-                      </div>
-                      <p className="text-slate-300 text-sm leading-relaxed p-4 bg-black/20 rounded-xl border border-white/5">
-                        {atsAnalysis.feedback}
-                      </p>
-                      {atsAnalysis.missing_keywords?.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Missing Keywords</p>
-                          <div className="flex flex-wrap gap-2">
-                            {atsAnalysis.missing_keywords.map((kw: string, i: number) => (
-                              <span key={i} className="px-2.5 py-1 text-xs font-medium bg-red-500/10 border border-red-500/20 text-red-300 rounded-md">
-                                {kw}
-                              </span>
-                            ))}
+                  {/* Region Distribution */}
+                  <div className="bg-[#1E1E24] border border-white/5 p-6 rounded-xl">
+                    <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      Target Regions
+                    </h3>
+                    <div className="space-y-4">
+                      {Object.entries(dashboardStats.region_distribution || {}).map(([region, count]: any) => (
+                        <div key={region} className="group">
+                          <div className="flex justify-between text-xs font-bold uppercase mb-1">
+                            <span className="text-slate-300 group-hover:text-cyan-400 transition-colors">{region}</span>
+                            <span className="text-slate-500">{count}</span>
+                          </div>
+                          <div className="h-2 bg-black/50 rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-cyan-600 to-blue-600 rounded-full transition-all duration-1000" style={{ width: `${(count / dashboardStats.total_resumes) * 100}%` }} />
                           </div>
                         </div>
+                      ))}
+                      {Object.keys(dashboardStats.region_distribution || {}).length === 0 && (
+                        <div className="text-slate-500 text-sm italic text-center py-4">No data available</div>
                       )}
                     </div>
                   </div>
-                </div>
-              )}
 
-              {/* AI Pattern Report */}
-              {aiDetection && (
-                <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 p-5 rounded-3xl shadow-xl">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-bold text-white flex items-center gap-2 text-lg">
-                      <svg className="w-6 h-6 text-fuchsia-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-                      Pattern Detector
+                  {/* Recent Activity Log */}
+                  <div className="bg-[#1E1E24] border border-white/5 p-6 rounded-xl">
+                    <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      Recent Activity
                     </h3>
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-24 bg-slate-800 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${aiDetection.human_score > 80 ? 'bg-green-500' : 'bg-orange-500'}`} style={{ width: `${aiDetection.human_score}%` }} />
-                      </div>
-                      <span className="text-sm font-bold text-white">{aiDetection.human_score}% Human</span>
-                    </div>
-                  </div>
-
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="p-3 bg-black/20 rounded-xl border border-white/5 text-sm text-slate-300 italic">
-                      "{aiDetection.summary}"
-                    </div>
-                    <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
-                      {aiDetection.items.map((item: any, i: number) => (
-                        <div key={i} className="text-xs bg-white/5 p-2 rounded-lg border border-white/5 flex flex-col">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-red-400 font-mono line-through opacity-75">{item.phrase}</span>
-                            <span className="text-[10px] text-slate-500 uppercase">{item.reason}</span>
+                    <div className="space-y-0 h-64 overflow-y-auto custom-scrollbar">
+                      {dashboardStats.recent_activity.map((event: any, i: number) => (
+                        <div key={i} className="flex gap-4 py-3 border-b border-white/5 last:border-0 hover:bg-white/5 px-2 transition-colors rounded-lg">
+                          <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${event.event_type === 'resume_generated' ? 'bg-cyan-500' :
+                            event.event_type === 'cover_letter_generated' ? 'bg-fuchsia-500' : 'bg-violet-500'
+                            }`} />
+                          <div className="flex-1">
+                            <div className="text-xs font-mono text-slate-500 mb-0.5">
+                              {new Date(event.timestamp + "Z").toLocaleTimeString()}
+                            </div>
+                            <div className="text-sm font-bold text-slate-200 capitalize">
+                              {event.event_type.replace(/_/g, ' ')}
+                            </div>
                           </div>
-                          <span className="text-green-400 font-bold flex items-center gap-1">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-                            {item.suggestion}
-                          </span>
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
-              )}
-
-              {/* Tabbed Results Area */}
-              <div className="bg-slate-900/40 backdrop-blur-3xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[900px]">
-
-                {/* Controls Bar */}
-                <div className="bg-black/40 border-b border-white/5 p-4 flex flex-col md:flex-row justify-between items-center gap-4">
-                  {/* Tabs */}
-                  <div className="flex p-1 bg-white/5 rounded-xl border border-white/5">
-                    <button
-                      onClick={() => setActiveResultTab("resume")}
-                      className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeResultTab === 'resume' ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
-                    >
-                      Resume Preview
-                    </button>
-                    <button
-                      onClick={() => setActiveResultTab("cover-letter")}
-                      className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${activeResultTab === 'cover-letter' ? 'bg-gradient-to-r from-fuchsia-600 to-pink-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
-                    >
-                      Cover Letter
-                    </button>
-                  </div>
-
-                  {/* Actions */}
-                  {activeResultTab === "resume" && pdfUrl && (
-                    <div className="flex gap-3">
-                      <input
-                        className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none w-40 focus:border-cyan-500/50"
-                        value={downloadName}
-                        onChange={(e) => setDownloadName(e.target.value)}
-                      />
-                      <a href={pdfUrl} download={`${downloadName}.pdf`} className="flex items-center gap-2 px-5 py-2 bg-white text-black hover:bg-slate-200 rounded-lg text-sm font-bold transition-colors shadow-lg shadow-white/10">
-                        Download PDF
-                      </a>
-                      <button
-                        onClick={handleSaveToTracker}
-                        className="px-6 py-2 bg-violet-600/20 text-violet-300 border border-violet-500/30 font-bold rounded-lg hover:bg-violet-600/30 transition-colors flex items-center gap-2"
-                      >
-                        Save to Tracker
-                      </button>
-                    </div>
-                  )}
-
-                  {activeResultTab === "cover-letter" && (
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => navigator.clipboard.writeText(coverLetter)}
-                        className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm font-semibold text-slate-300"
-                      >
-                        Copy Text
-                      </button>
-                      <button
-                        onClick={handleDownloadClPdf}
-                        disabled={isGeneratingClPdf}
-                        className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-fuchsia-600 to-pink-600 text-white rounded-lg text-sm font-bold shadow-lg hover:brightness-110 disabled:opacity-50"
-                      >
-                        {isGeneratingClPdf ? "Generating..." : "Download PDF"}
-                      </button>
-                      <button
-                        onClick={handleSaveToTracker}
-                        className="px-6 py-2 bg-violet-600/20 text-violet-300 border border-violet-500/30 font-bold rounded-lg hover:bg-violet-600/30 transition-colors flex items-center gap-2"
-                      >
-                        Save to Tracker
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Viewport */}
-                <div className="flex-1 relative bg-[#1E1E24]/50 overflow-hidden">
-
-                  {activeResultTab === "resume" && (
-                    <div className="h-full w-full flex items-center justify-center p-8">
-                      {pdfUrl ? (
-                        <iframe src={pdfUrl} className="w-full h-full rounded-xl shadow-2xl border border-white/10 bg-white" />
-                      ) : (
-                        <div className="text-center opacity-30">
-                          <svg className="w-24 h-24 mx-auto mb-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          <p className="text-xl font-bold">Document Preview</p>
-                          <p className="text-sm">Optimized content will appear here</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {activeResultTab === "cover-letter" && (
-                    <div className="h-full w-full p-8">
-                      <textarea
-                        className="w-full h-full bg-transparent text-slate-200 resize-none outline-none font-serif text-lg leading-relaxed whitespace-pre-wrap p-4 custom-scrollbar"
-                        value={coverLetter}
-                        onChange={(e) => setCoverLetter(e.target.value)}
-                        placeholder="Generate a cover letter to view and edit it here..."
-                      />
-                    </div>
-                  )}
-                </div>
-
               </div>
-
-
-            </div>
-
+            )}
           </div>
         )}
 
-        {/* --- OUTREACH TAB --- */}
+        {/* --- OUTREACH TAB (Builder Theme) --- */}
         {activeTab === 'outreach' && (
-          <div className="max-w-4xl mx-auto animate-fade-in">
-            <div className="bg-[#0f172a]/80 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
-              <h2 className="text-3xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
-                Cold Outreach Generator
-              </h2>
-              <p className="text-slate-400 mb-8">Generate high-conversion messages tailored to the Job Description.</p>
+          <div className="grid grid-cols-12 gap-6 h-full">
+            {/* Left Column: Controls */}
+            <div className="col-span-4 bg-[#13161c] border border-white/10 rounded-2xl p-6 overflow-y-auto custom-scrollbar flex flex-col gap-6 shadow-xl">
+              <div>
+                <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-2">Outreach</h2>
+                <p className="text-xs text-slate-400">Tailor your message to the specific recruiter.</p>
+              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              {/* Type Selector */}
+              <div className="grid grid-cols-3 gap-2 bg-black/30 p-1 rounded-xl">
                 {['linkedin', 'cold_email', 'follow_up'].map((t) => (
                   <button
                     key={t}
                     onClick={() => setOutreachType(t as any)}
-                    className={`p-4 rounded-xl border transition-all ${outreachType === t ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}`}
+                    className={`py-2 rounded-lg text-[10px] font-bold uppercase transition-all ${outreachType === t ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-500/20' : 'text-slate-500 hover:text-slate-300'}`}
                   >
-                    <div className="capitalize font-bold mb-1">{t.replace('_', ' ')}</div>
-                    <div className="text-xs opacity-70">
-                      {t === 'linkedin' ? 'Connection & InMail' : t === 'cold_email' ? 'Pitch to Hiring Manager' : 'Polite nudge after 1 week'}
-                    </div>
+                    {t.replace('_', ' ')}
                   </button>
                 ))}
               </div>
 
-              {/* LinkedIn Inputs */}
+              {/* Inputs */}
               {outreachType === 'linkedin' && (
-                <div className="grid grid-cols-2 gap-4 mb-6 animate-fade-in">
+                <div className="space-y-4 animate-fade-in">
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Recruiter Name</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Recruiter Name</label>
                     <input
-                      className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-slate-200 mt-1"
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-200 mt-1 focus:border-cyan-500/50 outline-none transition-colors"
                       placeholder="e.g. Sarah Jones"
                       value={recruiterName}
                       onChange={e => setRecruiterName(e.target.value)}
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Target Role</label>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Target Role</label>
                     <input
-                      className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-slate-200 mt-1"
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-200 mt-1 focus:border-cyan-500/50 outline-none transition-colors"
                       placeholder="e.g. Technical Recruiter"
                       value={recruiterRole}
                       onChange={e => setRecruiterRole(e.target.value)}
                     />
                   </div>
-                  <div className="col-span-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Message Type</label>
-                    <div className="flex gap-4 mt-2">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="li_type" checked={linkedinMsgType === 'connection'} onChange={() => setLinkedinMsgType('connection')} />
-                        <span className={linkedinMsgType === 'connection' ? 'text-cyan-400' : 'text-slate-400'}>Connection Note (300 chars)</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="li_type" checked={linkedinMsgType === 'message'} onChange={() => setLinkedinMsgType('message')} />
-                        <span className={linkedinMsgType === 'message' ? 'text-cyan-400' : 'text-slate-400'}>InMail / Full Message</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <button
-                onClick={handleGenerateOutreach}
-                disabled={isGeneratingOutreach}
-                className="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl font-bold text-white shadow-lg hover:shadow-cyan-500/25 transition-all disabled:opacity-50"
-              >
-                {isGeneratingOutreach ? "Writing Magic..." : "Generate Message"}
-              </button>
-
-              {/* LinkedIn Result */}
-              {linkedinResult && outreachType === 'linkedin' && (
-                <div className="mt-8 bg-black/40 border border-cyan-500/30 p-6 rounded-xl animate-fade-in-up">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-cyan-400 font-bold">Generated Message ({linkedinResult.length} chars)</h3>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(linkedinResult);
-                          alert("Copied!");
-                        }}
-                        className="px-3 py-1 bg-cyan-900/40 text-cyan-200 text-xs rounded hover:bg-cyan-800"
-                      >
-                        Copy Text
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Message Format</label>
+                    <div className="flex gap-2 mt-2">
+                      <button onClick={() => setLinkedinMsgType('connection')} className={`flex-1 py-2 rounded-lg border text-xs ${linkedinMsgType === 'connection' ? 'border-cyan-500 bg-cyan-500/10 text-cyan-300' : 'border-white/5 bg-white/5 text-slate-400'}`}>
+                        Connect (300ch)
                       </button>
-                      <a
-                        href="https://www.linkedin.com/feed/"
-                        target="_blank"
-                        className="px-3 py-1 bg-blue-700 text-white text-xs rounded hover:bg-blue-600 flex items-center gap-1"
-                      >
-                        Open LinkedIn ↗
-                      </a>
+                      <button onClick={() => setLinkedinMsgType('message')} className={`flex-1 py-2 rounded-lg border text-xs ${linkedinMsgType === 'message' ? 'border-cyan-500 bg-cyan-500/10 text-cyan-300' : 'border-white/5 bg-white/5 text-slate-400'}`}>
+                        InMail
+                      </button>
                     </div>
                   </div>
-                  <textarea
-                    className="w-full h-32 bg-transparent text-slate-300 resize-none outline-none"
-                    value={linkedinResult}
-                    readOnly
-                  />
                 </div>
               )}
 
-              {/* Output Display (Email) */}
-              {outreachType !== 'linkedin' && emailSequence.length > 0 ? (
-                <div className="mt-8 relative group">
-                  <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 to-blue-600/20 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-1000"></div>
-                  <div className="relative bg-[#020617] rounded-xl p-6 border border-white/10">
+              <div className="mt-auto">
+                <button
+                  onClick={handleGenerateOutreach}
+                  disabled={isGeneratingOutreach}
+                  className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl font-bold text-white shadow-lg hover:shadow-cyan-500/25 transition-all disabled:opacity-50 text-sm flex items-center justify-center gap-2"
+                >
+                  {isGeneratingOutreach ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin" />
+                      Writing Magic...
+                    </>
+                  ) : "Generate Message"}
+                </button>
+              </div>
+            </div>
 
-                    {/* Tabs */}
-                    <div className="flex gap-2 mb-6 border-b border-white/10 pb-2">
-                      {emailSequence.map((email, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => setActiveEmailIndex(idx)}
-                          className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeEmailIndex === idx
-                            ? "bg-white/10 text-cyan-400 border-b-2 border-cyan-400"
-                            : "text-slate-400 hover:text-slate-200"
-                            }`}
-                        >
-                          {email.label || `Email ${idx + 1}`}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="mb-4">
-                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Subject</span>
-                      <div className="mt-1 text-lg font-medium text-slate-200 border-b border-white/10 pb-2">
-                        {emailSequence[activeEmailIndex].subject}
-                      </div>
-                    </div>
-
-                    <pre className="whitespace-pre-wrap font-sans text-slate-300">
-                      {emailSequence[activeEmailIndex].body}
-                    </pre>
-
+            {/* Right Column: Preview */}
+            <div className="col-span-8 bg-[#1E1E24] border border-white/10 rounded-2xl overflow-hidden shadow-2xl relative flex flex-col">
+              <div className="h-12 bg-black/20 border-b border-white/5 flex items-center px-4">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Message Preview</span>
+                <div className="ml-auto flex gap-2">
+                  {outreachType !== 'linkedin' && (
                     <button
-                      onClick={() => navigator.clipboard.writeText(emailSequence[activeEmailIndex].subject + "\n\n" + emailSequence[activeEmailIndex].body)}
-                      className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-lg text-xs text-white"
+                      onClick={() => {
+                        const subject = outreachType === 'cold_email' || emailSequence.length > 0 ? (emailSequence[activeEmailIndex]?.subject || "Application") : "Application";
+                        const body = outreachType === 'cold_email' || emailSequence.length > 0 ? (emailSequence[activeEmailIndex]?.body || outreachContent) : outreachContent;
+                        // Use Gmail's "Compose" view URL to pre-fill subject and body
+                        window.open(`https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+                      }}
+                      className="text-[10px] px-2 py-1 bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 rounded text-white font-bold flex items-center gap-1 shadow-lg"
                     >
-                      Copy
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                      Open Gmail
                     </button>
-                  </div>
+                  )}
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(linkedinResult || outreachContent); alert("Copied!"); }}
+                    className="text-[10px] px-2 py-1 bg-white/5 hover:bg-white/10 rounded text-slate-300 border border-white/5"
+                  >
+                    Copy to Clipboard
+                  </button>
                 </div>
-              ) : outreachContent && (
-                <div className="mt-8 relative group">
-                  <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 to-blue-600/20 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-1000"></div>
-                  <div className="relative bg-[#020617] rounded-xl p-6 border border-white/10">
-                    <pre className="whitespace-pre-wrap font-sans text-slate-300">{outreachContent}</pre>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(outreachContent)}
-                      className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-lg text-xs"
-                    >
-                      Copy
-                    </button>
+              </div>
+
+              <div className="flex-1 p-6 relative">
+                {/* Background Accents */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-[64px]" />
+
+                {(linkedinResult || outreachContent) ? (
+                  <div className="relative z-10 font-serif text-slate-200 text-lg leading-relaxed whitespace-pre-wrap">
+                    {outreachType === 'linkedin' ? linkedinResult : outreachContent}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-600">
+                    <svg className="w-16 h-16 opacity-20 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                    <p>Select settings and generate your message</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
 
-        {/* --- TRACKER TAB --- */}
+        {/* --- TRACKER TAB (Builder Theme) --- */}
+        {/* --- TRACKER TAB (Kanban Board) --- */}
         {activeTab === 'tracker' && (
-          <div className="max-w-6xl mx-auto animate-fade-in">
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-500">
-                Application Tracker
-              </h2>
-              <button onClick={fetchApplications} className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-slate-400">
+          <div className="h-full flex flex-col gap-6">
+            <div className="bg-[#13161c] border border-white/10 rounded-2xl p-6 flex justify-between items-center shadow-lg shrink-0">
+              <div>
+                <h2 className="text-2xl font-bold text-white">Application Tracker</h2>
+                <p className="text-xs text-slate-400">Drag and drop to update status (Simulation)</p>
+              </div>
+              <button onClick={fetchApplications} className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-slate-300 transition-colors flex items-center gap-2">
                 Refresh
               </button>
             </div>
 
-            {applications.length === 0 ? (
-              <div className="text-center py-20 text-slate-500 bg-white/5 rounded-3xl border border-white/5 border-dashed">
-                No applications tracked yet. save one from the Builder!
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                {applications.map((app) => (
-                  <div key={app.id} className="bg-[#0f172a]/80 backdrop-blur border border-white/5 p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center gap-6 group hover:border-white/10 transition-all">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-white">{app.company_name}</h3>
-                      <div className="text-slate-400">{app.job_title}</div>
-                      <div className="text-xs text-slate-600 mt-1">Applied: {app.date_applied}</div>
+            <div className="flex-1 overflow-x-auto overflow-y-hidden">
+              <div className="flex gap-4 h-full min-w-[1000px] px-4 pb-4">
+                {['Applied', 'Interview', 'Offer', 'Rejected'].map((status) => (
+                  <div key={status} className="flex-1 flex flex-col bg-[#1E1E24] border border-white/10 rounded-2xl overflow-hidden shadow-xl">
+                    {/* Column Header */}
+                    <div className={`p-4 border-b border-white/5 flex items-center justify-between
+                            ${status === 'Applied' ? 'bg-blue-500/10' :
+                        status === 'Interview' ? 'bg-violet-500/10' :
+                          status === 'Offer' ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+                      <h3 className={`font-bold uppercase tracking-widest text-xs
+                               ${status === 'Applied' ? 'text-blue-400' :
+                          status === 'Interview' ? 'text-violet-400' :
+                            status === 'Offer' ? 'text-green-400' : 'text-red-400'}`}>
+                        {status}
+                      </h3>
+                      <span className="bg-white/10 px-2 py-0.5 rounded text-[10px] text-white/50">
+                        {applications.filter(a => a.status === status || (status === 'Applied' && !['Interview', 'Offer', 'Rejected'].includes(a.status))).length}
+                      </span>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                      <select
-                        value={app.status}
-                        onChange={(e) => updateAppStatus(app.id, e.target.value)}
-                        className={`bg-transparent border border-white/10 rounded-lg px-3 py-1 text-sm font-bold outline-none
-                                   ${app.status === 'Applied' ? 'text-blue-400' :
-                            app.status === 'Interviewing' ? 'text-yellow-400' :
-                              app.status === 'Offer' ? 'text-green-400' : 'text-red-400'}`}
-                      >
-                        <option value="Applied">Applied</option>
-                        <option value="Interviewing">Interviewing</option>
-                        <option value="Offer">Offer</option>
-                        <option value="Rejected">Rejected</option>
-                      </select>
+                    {/* Cards Container */}
+                    <div className="flex-1 p-3 overflow-y-auto custom-scrollbar space-y-3">
+                      {applications.filter(a => a.status === status || (status === 'Applied' && !['Interview', 'Offer', 'Rejected'].includes(a.status))).map(app => (
+                        <div key={app.id} className="bg-[#13161c] p-4 rounded-xl border border-white/5 group hover:border-cyan-500/30 transition-all shadow-md relative">
+                          <h4 className="font-bold text-slate-200 text-sm group-hover:text-cyan-400 transition-colors mb-1">{app.company_name}</h4>
+                          <p className="text-[10px] text-slate-500 font-medium mb-3">{app.job_title}</p>
+                          <p className="text-[9px] text-slate-600 font-mono mb-3">{app.date_applied}</p>
 
-                      <button
-                        onClick={() => deleteApp(app.id)}
-                        className="text-slate-600 hover:text-red-400 transition-colors p-2"
-                      >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      </button>
+                          {/* Quick Actions */}
+                          <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                            {status !== 'Rejected' && <button onClick={() => updateAppStatus(app.id, "Rejected")} className="p-1.5 hover:bg-red-500/20 text-slate-500 hover:text-red-400 rounded transition-colors" title="Reject"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>}
+                            {status !== 'Interview' && status !== 'Offer' && <button onClick={() => updateAppStatus(app.id, "Interview")} className="p-1.5 hover:bg-violet-500/20 text-slate-500 hover:text-violet-400 rounded transition-colors" title="Move to Interview"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg></button>}
+                            {status === 'Interview' && <button onClick={() => updateAppStatus(app.id, "Offer")} className="p-1.5 hover:bg-green-500/20 text-slate-500 hover:text-green-400 rounded transition-colors" title="Move to Offer"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg></button>}
+                            <button onClick={() => deleteApp(app.id)} className="p-1.5 hover:bg-slate-700 text-slate-600 hover:text-white rounded transition-colors" title="Delete"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
               </div>
-            )}
+            </div>
           </div>
         )}
 
-      </div>
+      </div >
 
       <style jsx global>{`
         .bg-grid-pattern {
@@ -1263,7 +1207,16 @@ export default function Home() {
         .animate-float-fast { animation: float-fast 5s ease-in-out infinite; }
         .animate-text-shimmer { background-size: 200% auto; animation: text-shimmer 3s linear infinite; }
         .animate-border-glow { animation: border-glow 2s ease-in-out infinite; }
+        .animate-spin-slow { animation: spin 8s linear infinite; }
+        .animate-cyber-scan { animation: cyber-scan 2s linear infinite; }
+        
+        @keyframes cyber-scan {
+            0% { top: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
       `}</style>
-    </div>
+    </div >
   );
 }
