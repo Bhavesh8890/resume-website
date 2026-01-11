@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { width: 320px; padding: 16px; font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; margin: 0; }
+    h3 { margin-top: 0; margin-bottom: 12px; color: #a5b4fc; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+    button {
+      width: 100%; padding: 12px; background: linear-gradient(to right, #6366f1, #d946ef);
+      border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;
+      font-size: 14px; transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.9; }
+    #status { margin-top: 12px; font-size: 13px; color: #cbd5e1; min-height: 20px; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.05); text-align: center; }
+    .footer { margin-top: 12px; font-size: 10px; color: #64748b; text-align: center; }
+  </style>
+</head>
+<body>
+  <h3>
+    <span>🚀</span> Antigravity Scraper
+  </h3>
+  <p style="font-size: 12px; color: #94a3b8; margin-bottom: 16px; margin-top: 0;">
+    Go to a LinkedIn/Indeed job page and click below.
+  </p>
+  <button id="scrapeBtn">Grab Job Description</button>
+  <div id="status"></div>
+  <div class="footer">Copied text will be ready to paste.</div>
+  <script src="popup.js"></script>
+</body>
+</html>

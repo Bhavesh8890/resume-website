@@ -1,0 +1,13 @@
+{
+    "manifest_version": 3,
+    "name": "Antigravity Resume Job Scraper",
+    "version": "1.0",
+    "description": "Scrape job descriptions from LinkedIn/Indeed and copy to clipboard for Resume Builder.",
+    "permissions": [
+        "activeTab",
+        "scripting"
+    ],
+    "action": {
+        "default_popup": "popup.html"
+    }
+}

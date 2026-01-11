@@ -54,6 +54,7 @@ class RewriteRequest(BaseModel):
     current_yaml: str
     target_region: str = "international"
     user_comments: str = ""
+    model_version: str = "gemini-3-flash-preview"
     api_key: str = None
 
 class ATSRequest(BaseModel):
@@ -79,14 +80,35 @@ class RenderCoverLetterRequest(BaseModel):
     cover_letter_text: str
     theme: str = "classic"
 
+class VersionRequest(BaseModel):
+    name: str
+    yaml_content: str
+    theme: str = "classic"
+
+class LinkedInRequest(BaseModel):
+    resume_yaml: str
+    job_description: str = "" 
+    recruiters_name: str = ""
+    recruiters_role: str = ""
+    company_name: str = ""
+    type: str = "connection" # 'connection' or 'message'
+    api_key: str = None
+
 # --- Helper Functions ---
 
-def get_gemini_model(api_key: str = None):
+def get_gemini_model(api_key: str = None, model_version: str = "models/gemini-3-flash-preview"):
     key = api_key or os.environ.get("GEMINI_API_KEY")
     if not key:
         raise HTTPException(status_code=400, detail="Gemini API Key is required")
     genai.configure(api_key=key)
-    return genai.GenerativeModel('models/gemini-3-pro-preview')
+    
+    # User strictly requested this model name
+    # We will trust the user has access to this specific preview model
+    if "gemini-3" in model_version or "flash" in model_version:
+         model_version = "models/gemini-3-flash-preview" 
+
+    print(f"Using AI Model: {model_version}")
+    return genai.GenerativeModel(model_version)
 
 # --- Endpoints ---
 
@@ -96,7 +118,7 @@ def health_check():
 
 @app.post("/rewrite")
 async def rewrite_resume(request: RewriteRequest):
-    model = get_gemini_model(request.api_key)
+    model = get_gemini_model(request.api_key, request.model_version)
     
     # --- Step 1: Keyword Extraction (The "Brain" Step) ---
     # We first identify exactly what an ATS would look for.
@@ -184,7 +206,7 @@ async def rewrite_resume(request: RewriteRequest):
        """
 
     rewrite_prompt = f"""
-    You are a Strategic Resume Optimizer. Your goal is to maximize the ATS score (aiming for 100/100) for the given Job Description.
+    You are a Strategic Resume Optimizer. Your goal is to maximize the ATS score (aiming for 100/100) for the given Job Description while ensuring the text PASSES AI DETECTION (Human Score > 85%).
 
     INPUT DATA:
     1. **Critial Keywords to Inject**: {keywords}
@@ -193,44 +215,50 @@ async def rewrite_resume(request: RewriteRequest):
     3. **Current Resume (YAML)**:
     {request.current_yaml}
 
-    CRITICAL INSTRUCTIONS:
-    1. **NO PREAMBLE**:
-       - RETURN ONLY THE YAML. Do NOT write "Here is the yaml" or any chat.
-       - Start immediately with `cv:`.
+    CRITICAL INSTRUCTIONS - "ANTI-AI" MODE ENGAGED:
 
-    2. **NO HALLUCINATIONS (Top Priority)**:
-       - **NEVER** invent new Job Titles, Company Names, Dates, or Locations. You must use the exact work history provided in the 'Current Resume'.
+    1. **DEFEAT AI DETECTORS (Top Priority)**:
+       - **HIGH PERPLEXITY**: Avoid predictable word chains. Do not choose the most statistically probable next word. Use more specific, varied, or slightly "imperfect" but professional phrasings.
+       - **HIGH BURSTINESS**: Vary your sentence structure. Do NOT use the same "Action Verb + Task + Result" pattern for every single bullet.
+         - Mix short, punchy sentences with longer, complex clauses.
+         - Occasionally start with the Result ("Reduced costs by 20% by...") instead of the Action.
+       - **NO REPETITIVE PATTERNS**: Do not start consecutive bullets with the same part of speech.
+
+    2. **BANNED VOCABULARY (Strict Enforcement)**:
+       - **NEVER** use these "AI-giveaway" words/phrases:
+         - "Spearheaded", "Orchestrated", "Navigating", "Meticulous", "Paramount"
+         - "Delve", "Tapestry", "Unleashed", "Transformative", "Foster", "Leverage"
+         - "Utilizing", "Showcasing", "Ensuring", "Facilitated", "Augmenting"
+       - **Alternatives**:
+         - Instead of "Spearheaded" -> "Led", "Ran", "Directed".
+         - Instead of "Orchestrated" -> "Built", "Managed", "Fixed".
+         - Instead of "Leverage" -> "Use", "Apply".
+       - **TEST**: If a sentence sounds like a corporate press release, REWRITE IT to sound like a human engineer talking to another engineer.
+
+    3. **NO HALLUCINATIONS**:
+       - **NEVER** invent new Job Titles, Company Names, Dates, or Locations.
        - **NEVER** add a new entry to the `experience` section that does not exist in the input.
        - You strictly ONLY enhance the *bullet points* inside existing roles.
-       - **PRESERVE DATE FORMATS**: Do not change "Dec 2023" to "December 2023" or "2023-12" unless necessary. Keep consistency.
+       - **PRESERVE DATE FORMATS**: Keep strict ISO 8601 formatting or original consistency.
 
-    3. **PRESERVE HEADER / BASICS (CRITICAL)**:
-       - You **MUST** retain the `basics` section from the input YAML exactly as is (unless specific Country Rules below say to remove specific fields like age/photo).
-       - **MANDATORY FIELDS**: Ensure `name`, `email`, `phone`, `website`, `location`, and `social_networks` (LinkedIn, GitHub, etc.) are included in the output YAML.
-       - Do **NOT** drop the LinkedIn or GitHub links.
+    4. **PRESERVE HEADER / BASICS**:
+       - You **MUST** retain the `basics` section exactly as is.
+       - **MANDATORY**: `name`, `email`, `phone`, `website`, `location`, `social_networks` MUST be present in output.
 
-    4. **KEYWORD INJECTION**:
+    5. **ATS OPTIMIZATION**:
        - Naturally integrate the "Critical Keywords": {keywords}
-       - integrate them into *existing* experience entries or the 'skills' section.
-       - If a keyword (e.g. "Kubernetes") is missing and cannot be truthfully added to an existing job, add it to a "Projects" section or "Skills" section, but DO NOT fake a job experience for it.
+       - Place them in context. Do not "stuff" them.
+       - Quantify results (numbers, $, %) where possible, but keep it realistic.
 
-    5. **CONTENT QUALITY & VOCABULARY**:
-       - **ABSOLUTE RULE**: Do NOT use the same action verb more than ONCE in the entire resume.
-       - **Specific prohibition**: If you used "Automated" once, you MUST NOT use it again. Use synonyms like "Streamlined", "Orchestrated", "Engineered", "Scripted", "Accelerated", "Optimized".
-       - **AUDIT YOURSELF**: Before outputting, check if any verb appears twice. If so, change one immediately.
-       - Use the STAR method (Situation, Task, Action, Result).
-       - Quantify results (numbers, $, %) in every bullet. Just raw YAML.
-       
-    6. **NO MARKDOWN FORMATTING**:
-       - **DO NOT** use bolding (like **Text**) or italics (*Text*) in the YAML values. 
-       - Pure plain text only. The YAML parser will fail calls if it sees asterisks that look like aliases.
-       - Example: Write "Resolved critical issue", NOT "**Resolved** critical issue".
+    6. **NO MARKDOWN**:
+       - **DO NOT** use bolding (**Text**) or italics. Pure plain text only.
 
     {region_instructions}
 
     {custom_instructions}
 
-    Perform the rewrite now.
+    **FINAL OUTPUT FORMAT**:
+    Return ONLY the YAML. Start immediately with `cv:`.
     """
 
     try:
@@ -251,6 +279,9 @@ async def rewrite_resume(request: RewriteRequest):
             else:
                  # Aggressive strip: Find the first "cv:" and take everything from there
                  new_yaml_content = "cv:" + preamble_check[1]
+
+        # Analytics
+        log_event("resume_generated", {"target_region": request.target_region, "model": request.model_version})
 
         # Sanitize: Remove markdown bolding (double asterisks) to prevent YAML alias errors
         # Replaces **Text** with Text
@@ -533,6 +564,52 @@ async def generate_cover_letter(request: CoverLetterRequest):
     except Exception as e:
         print(f"Cover Letter Error: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate cover letter.")
+
+@app.post("/generate_linkedin")
+async def generate_linkedin(request: LinkedInRequest):
+    request_api_key = request.api_key or os.environ.get("GEMINI_API_KEY")
+    if not request_api_key:
+         raise HTTPException(status_code=400, detail="Gemini API Key required")
+    
+    model = get_gemini_model(request_api_key)
+
+    if request.type == "connection":
+        prompt_type = "LINKEDIN CONNECTION REQUEST (Strictly < 300 characters)"
+        constraints = "Keep it strictly under 300 characters including spaces (LinkedIn Limit). Be casual but professional. Mention a shared interest or specific skill relevance."
+    else:
+        prompt_type = "LINKEDIN INMAIL / FULL MESSAGE"
+        constraints = "Professional, persuasive, and concise (approx 100-150 words). Use a 'hook' in the first sentence."
+
+    prompt = f"""
+    You are a Career Networking Expert. Write a {prompt_type} to a Recruiter/Hiring Manager.
+    
+    MY RESUME SUMMARY (YAML):
+    {request.resume_yaml[:1500]}...
+    
+    TARGET RECRUITER:
+    Name: {request.recruiters_name or 'Hiring Manager'}
+    Role: {request.recruiters_role or 'Recruiter'}
+    Company: {request.company_name or 'the company'}
+    
+    CONTEXT/JOB:
+    {request.job_description[:500]}
+    
+    CONSTRAINTS:
+    {constraints}
+    
+    GOAL:
+    Get them to accept the connection or reply to the message. Mention a specific skill from my resume that matches their company/role.
+    
+    OUTPUT:
+    Return ONLY the message text. No subject lines (unless InMail), no quotes.
+    """
+    
+    try:
+        response = model.generate_content(prompt)
+        text = response.text.strip().replace('"', '') # Clean quotes
+        return {"content": text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/render_cover_letter_pdf")
 async def render_cover_letter_pdf(request: RenderCoverLetterRequest):
@@ -929,3 +1006,119 @@ async def scrape_job(request: ScrapeRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# --- Version Control Endpoints ---
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+VERSIONS_DIR = os.path.join(BASE_DIR, "data", "versions")
+
+@app.get("/versions")
+async def list_versions():
+    if not os.path.exists(VERSIONS_DIR):
+        return []
+    files = [f for f in os.listdir(VERSIONS_DIR) if f.endswith(".yaml")]
+    # return names without extension
+    return [f.replace(".yaml", "") for f in files]
+
+@app.get("/versions/{name}")
+async def get_version(name: str):
+    file_path = os.path.join(VERSIONS_DIR, f"{name}.yaml")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Version not found")
+    with open(file_path, "r") as f:
+        content = f.read()
+    return {"name": name, "yaml_content": content}
+
+@app.post("/versions")
+async def save_version(request: VersionRequest):
+    if not os.path.exists(VERSIONS_DIR):
+        os.makedirs(VERSIONS_DIR)
+    
+    # Sanitize filename (basic)
+    safe_name = "".join([c for c in request.name if c.isalnum() or c in (' ', '-', '_')]).strip()
+    if not safe_name:
+         raise HTTPException(status_code=400, detail="Invalid version name")
+
+    file_path = os.path.join(VERSIONS_DIR, f"{safe_name}.yaml")
+    with open(file_path, "w") as f:
+        f.write(request.yaml_content)
+    
+    return {"message": "Version saved", "name": safe_name}
+
+@app.delete("/versions/{name}")
+async def delete_version(name: str):
+    file_path = os.path.join(VERSIONS_DIR, f"{name}.yaml")
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    return {"message": "Version deleted"}
+
+# --- Analytics Database ---
+import sqlite3
+from datetime import datetime
+
+ANALYTICS_DB_PATH = os.path.join(BASE_DIR, "data", "analytics.db")
+
+def init_analytics_db():
+    if not os.path.exists(os.path.dirname(ANALYTICS_DB_PATH)):
+        os.makedirs(os.path.dirname(ANALYTICS_DB_PATH))
+    
+    conn = sqlite3.connect(ANALYTICS_DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            details TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def log_event(event_type: str, details: dict):
+    try:
+        init_analytics_db()
+        conn = sqlite3.connect(ANALYTICS_DB_PATH)
+        c = conn.cursor()
+        c.execute("INSERT INTO events (event_type, details) VALUES (?, ?)", (event_type, json.dumps(details)))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Analytics Error: {e}")
+
+@app.get("/analytics")
+async def get_analytics():
+    init_analytics_db()
+    conn = sqlite3.connect(ANALYTICS_DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    # Total count
+    c.execute("SELECT COUNT(*) as count FROM events WHERE event_type='resume_generated'")
+    total_resumes = c.fetchone()['count']
+    
+    # Recent activity
+    c.execute("SELECT * FROM events ORDER BY timestamp DESC LIMIT 20")
+    recent = [dict(row) for row in c.fetchall()]
+    
+    # Theme distribution (parsing JSON in python for simplicity if sqlite json1 not available)
+    c.execute("SELECT details FROM events WHERE event_type='resume_generated'")
+    theme_counts = {}
+    region_counts = {}
+    
+    for row in c.fetchall():
+        try:
+            d = json.loads(row['details'])
+            t = d.get('target_region', 'unknown')
+            region_counts[t] = region_counts.get(t, 0) + 1
+        except: pass
+
+    conn.close()
+    return {
+        "total_resumes": total_resumes,
+        "region_distribution": region_counts,
+        "recent_activity": recent
+    }
+
+# Hook logging into existing endpoints
+# Note: I will inject the logging calls into valid rewrite_resume and render_pdf functions via editing

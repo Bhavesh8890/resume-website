@@ -15,9 +15,7 @@ export default function Home() {
   const [scraperUrl, setScraperUrl] = useState("");
   const [isScraping, setIsScraping] = useState(false);
 
-  // Email Sequencer State
-  const [emailSequence, setEmailSequence] = useState<any[]>([]);
-  const [activeEmailIndex, setActiveEmailIndex] = useState(0);
+
 
   const [theme, setTheme] = useState("classic");
   const [targetRegion, setTargetRegion] = useState("international");
@@ -25,10 +23,7 @@ export default function Home() {
   // Constant for API URL avoids "localhost" issues on mobile
   const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://resume-backend-463635413770.asia-south1.run.app";
 
-  // Outreach State
-  const [outreachType, setOutreachType] = useState("linkedin");
-  const [outreachContent, setOutreachContent] = useState("");
-  const [isGeneratingOutreach, setIsGeneratingOutreach] = useState(false);
+
 
   // Tracker State
   const [applications, setApplications] = useState<any[]>([]);
@@ -42,14 +37,46 @@ export default function Home() {
   const [currentStep, setCurrentStep] = useState<Step>("idle");
   const [statusMessage, setStatusMessage] = useState("");
 
+  // Version Control State
+  const [versions, setVersions] = useState<string[]>([]);
+  const [newVersionName, setNewVersionName] = useState("");
+  const [showSaveVersion, setShowSaveVersion] = useState(false);
+
   // Results
   // Results
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [atsAnalysis, setAtsAnalysis] = useState<any>(null);
   const [aiDetection, setAiDetection] = useState<any>(null);
 
+  // Analytics Dashboard State
+  const [dashboardStats, setDashboardStats] = useState<any>(null);
+
+  // Load dashboard data when tab is active
+  useEffect(() => {
+    if (activeTab === 'analytics') {
+      fetch(`${API_BASE_URL}/analytics`)
+        .then(res => res.json())
+        .then(data => setDashboardStats(data))
+        .catch(err => console.error("Dashboard fetch error:", err));
+    }
+  }, [activeTab]);
+
   const [coverLetter, setCoverLetter] = useState<string>("");
   const [isGeneratingClPdf, setIsGeneratingClPdf] = useState(false);
+
+  // Outreach State
+  type OutreachType = "linkedin" | "cold_email" | "follow_up";
+  const [outreachType, setOutreachType] = useState<OutreachType>("linkedin");
+  const [outreachContent, setOutreachContent] = useState("");
+  const [emailSequence, setEmailSequence] = useState<any[]>([]);
+  const [isGeneratingOutreach, setIsGeneratingOutreach] = useState(false);
+  const [activeEmailIndex, setActiveEmailIndex] = useState(0);
+
+  // LinkedIn Specific State
+  const [recruiterName, setRecruiterName] = useState("");
+  const [recruiterRole, setRecruiterRole] = useState("Recruiter");
+  const [linkedinMsgType, setLinkedinMsgType] = useState("connection"); // 'connection' | 'message'
+  const [linkedinResult, setLinkedinResult] = useState("");
 
 
   const handleGenerate = async () => {
@@ -237,6 +264,43 @@ export default function Home() {
 
 
   // --- Outreach Handlers ---
+  // --- Version Control Handlers ---
+  const fetchVersions = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/versions`);
+      if (res.ok) setVersions(await res.json());
+    } catch (e) { console.error(e); }
+  };
+  useEffect(() => { fetchVersions(); }, []);
+
+  const handleSaveVersion = async () => {
+    if (!newVersionName) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/versions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newVersionName, yaml_content: yaml })
+      });
+      if (res.ok) {
+        setNewVersionName("");
+        setShowSaveVersion(false);
+        fetchVersions();
+        alert("Version Saved!");
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const handleLoadVersion = async (name: string) => {
+    if (!confirm(`Load version "${name}"? Unsaved changes will be lost.`)) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/versions/${name}`);
+      if (res.ok) {
+        const data = await res.json();
+        setYaml(data.yaml_content);
+      }
+    } catch (e) { console.error(e); }
+  };
+
   // --- Scraper Handler ---
   const handleScrapeJob = async () => {
     if (!scraperUrl) return;
@@ -269,7 +333,33 @@ export default function Home() {
       return;
     }
     setIsGeneratingOutreach(true);
-    setEmailSequence([]); // clear previous
+    setLinkedinResult("");
+    setEmailSequence([]);
+
+    // LINKEDIN LOGIC
+    if (outreachType === 'linkedin') {
+      try {
+        const res = await fetch(`${API_BASE_URL}/generate_linkedin`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            resume_yaml: yaml,
+            job_description: jd,
+            recruiters_name: recruiterName,
+            recruiters_role: recruiterRole,
+            type: linkedinMsgType,
+            api_key: apiKey
+          })
+        });
+        const data = await res.json();
+        if (res.ok) setLinkedinResult(data.content);
+        else throw new Error(data.detail);
+      } catch (e: any) { alert(e.message); }
+      finally { setIsGeneratingOutreach(false); }
+      return;
+    }
+
+    // EMAIL LOGIC (Existing)
     try {
       const res = await fetch(`${API_BASE_URL}/generate_outreach`, {
         method: "POST",
@@ -398,6 +488,12 @@ export default function Home() {
             Outreach AI
           </button>
           <button
+            onClick={() => setActiveTab('analytics')}
+            className={`px-6 py-2 rounded-full font-bold transition-all ${activeTab === 'analytics' ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20' : 'bg-white/5 hover:bg-white/10 text-slate-400'}`}
+          >
+            Analytics
+          </button>
+          <button
             onClick={() => setActiveTab('tracker')}
             className={`px-6 py-2 rounded-full font-bold transition-all ${activeTab === 'tracker' ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/20' : 'bg-white/5 hover:bg-white/10 text-slate-400'}`}
           >
@@ -443,6 +539,45 @@ export default function Home() {
                 </h2>
 
                 <div className="space-y-5">
+
+                  {/* Version Control */}
+                  <div className="space-y-2 mb-6 pb-6 border-b border-white/10">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Saved Versions</label>
+                    <div className="flex gap-2">
+                      <select
+                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-slate-200 outline-none"
+                        onChange={(e) => handleLoadVersion(e.target.value)}
+                        value=""
+                      >
+                        <option value="" disabled>Load Saved Resume...</option>
+                        {versions.map(v => <option key={v} value={v}>{v}</option>)}
+                      </select>
+                      <button
+                        onClick={() => setShowSaveVersion(!showSaveVersion)}
+                        className="px-3 bg-white/10 hover:bg-white/20 rounded-xl text-slate-300 transition-colors"
+                        title="Save Current Version"
+                      >
+                        💾
+                      </button>
+                    </div>
+                    {/* Save Input */}
+                    {showSaveVersion && (
+                      <div className="flex gap-2 mt-2 animate-fade-in-down">
+                        <input
+                          className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
+                          placeholder="Version Name (e.g. 'Backend Dev')"
+                          value={newVersionName}
+                          onChange={e => setNewVersionName(e.target.value)}
+                        />
+                        <button
+                          onClick={handleSaveVersion}
+                          className="px-3 py-1 bg-green-600/20 text-green-400 border border-green-500/30 rounded-lg text-xs font-bold hover:bg-green-600/30"
+                        >
+                          Save
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Theme Selector */}
                   <div className="space-y-2">
@@ -870,16 +1005,53 @@ export default function Home() {
                 {['linkedin', 'cold_email', 'follow_up'].map((t) => (
                   <button
                     key={t}
-                    onClick={() => setOutreachType(t)}
+                    onClick={() => setOutreachType(t as any)}
                     className={`p-4 rounded-xl border transition-all ${outreachType === t ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}`}
                   >
                     <div className="capitalize font-bold mb-1">{t.replace('_', ' ')}</div>
                     <div className="text-xs opacity-70">
-                      {t === 'linkedin' ? 'Short connection request' : t === 'cold_email' ? 'Pitch to Hiring Manager' : 'Polite nudge after 1 week'}
+                      {t === 'linkedin' ? 'Connection & InMail' : t === 'cold_email' ? 'Pitch to Hiring Manager' : 'Polite nudge after 1 week'}
                     </div>
                   </button>
                 ))}
               </div>
+
+              {/* LinkedIn Inputs */}
+              {outreachType === 'linkedin' && (
+                <div className="grid grid-cols-2 gap-4 mb-6 animate-fade-in">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Recruiter Name</label>
+                    <input
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-slate-200 mt-1"
+                      placeholder="e.g. Sarah Jones"
+                      value={recruiterName}
+                      onChange={e => setRecruiterName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Target Role</label>
+                    <input
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-slate-200 mt-1"
+                      placeholder="e.g. Technical Recruiter"
+                      value={recruiterRole}
+                      onChange={e => setRecruiterRole(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Message Type</label>
+                    <div className="flex gap-4 mt-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="li_type" checked={linkedinMsgType === 'connection'} onChange={() => setLinkedinMsgType('connection')} />
+                        <span className={linkedinMsgType === 'connection' ? 'text-cyan-400' : 'text-slate-400'}>Connection Note (300 chars)</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="li_type" checked={linkedinMsgType === 'message'} onChange={() => setLinkedinMsgType('message')} />
+                        <span className={linkedinMsgType === 'message' ? 'text-cyan-400' : 'text-slate-400'}>InMail / Full Message</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <button
                 onClick={handleGenerateOutreach}
@@ -889,8 +1061,40 @@ export default function Home() {
                 {isGeneratingOutreach ? "Writing Magic..." : "Generate Message"}
               </button>
 
-              {/* Output Display */}
-              {emailSequence.length > 0 ? (
+              {/* LinkedIn Result */}
+              {linkedinResult && outreachType === 'linkedin' && (
+                <div className="mt-8 bg-black/40 border border-cyan-500/30 p-6 rounded-xl animate-fade-in-up">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-cyan-400 font-bold">Generated Message ({linkedinResult.length} chars)</h3>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(linkedinResult);
+                          alert("Copied!");
+                        }}
+                        className="px-3 py-1 bg-cyan-900/40 text-cyan-200 text-xs rounded hover:bg-cyan-800"
+                      >
+                        Copy Text
+                      </button>
+                      <a
+                        href="https://www.linkedin.com/feed/"
+                        target="_blank"
+                        className="px-3 py-1 bg-blue-700 text-white text-xs rounded hover:bg-blue-600 flex items-center gap-1"
+                      >
+                        Open LinkedIn ↗
+                      </a>
+                    </div>
+                  </div>
+                  <textarea
+                    className="w-full h-32 bg-transparent text-slate-300 resize-none outline-none"
+                    value={linkedinResult}
+                    readOnly
+                  />
+                </div>
+              )}
+
+              {/* Output Display (Email) */}
+              {outreachType !== 'linkedin' && emailSequence.length > 0 ? (
                 <div className="mt-8 relative group">
                   <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 to-blue-600/20 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-1000"></div>
                   <div className="relative bg-[#020617] rounded-xl p-6 border border-white/10">
